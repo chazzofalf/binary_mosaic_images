@@ -6,7 +6,6 @@ import math
 import sys
 # Everything contained in one file for easy posting! 😁🦋
 # Requirements (Output of python -m pip freeze) (everything between the ''' lines):
-
 '''
 Pillow==10.1.0
 
