@@ -49,12 +49,7 @@ def main(img_name:str,img_out_name:str,colorhex:str=None,invert=False,cell_inver
             if isinstance(lookup[-1],list) and isinstance(anti_lookup[-1],list):
                 lookup[-1].append(sum((get_pixel(x*5+xd,y*5+yd,img) for yd in range(0,5) for xd in range(0,5)))//25)
                 anti_lookup[-1].append(255-lookup[-1][-1])    
-    print(len(lookup))
-    print(min(len(f) for f in lookup))
-    print('anti')
-    print(len(anti_lookup))
-    print(min(len(f) for f in anti_lookup))
-    imgout=PIL.Image.new('L',img.size)
+                    
     for y in range(0,img.height):
         for x in range(0,img.width):
             try:
