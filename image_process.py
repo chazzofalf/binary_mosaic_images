@@ -37,7 +37,7 @@ def get_processed_pixel_color(x: int, y: int,lookup: list,anti_lookup:list):
 def main(img_name:str,img_out_name:str,colorhex:str=None,invert=False,cell_invert=False):
     img=PIL.Image.open(img_name)
     img=img.convert(mode='L')
-    img.save('___.png')
+    #img.save('___.png')
     (img_width,img_height)=(img.width,img.height)
     lookup=[]
     anti_lookup=[]
