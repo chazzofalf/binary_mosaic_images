@@ -25,7 +25,7 @@ def drain(ppool:list[list[subprocess.Popen]]):
     while found:
         found=False
         for pref in ppool:
-            if pref[0] is None or pref[0].poll() is not None:                
+            if pref[0] is not None and pref[0].poll() is None:                
                 found=True
                 break
         time.sleep(0.1)
@@ -44,7 +44,7 @@ def main(input_directory: str,output_dir: str,reset_output_dir: bool=False,color
         for entity in opath.iterdir():
             raise Exception('Safety: Non Empty Directory while not specifying reset_output_directory.')
     ppool=[]
-    for _ in range(0,os.cpu_count()):
+    for _ in range(0,os.cpu_count()**2):
         ppool.append([None])
     for input_entity in ipath.iterdir():
         name=str(input_entity.relative_to(input_directory))        
