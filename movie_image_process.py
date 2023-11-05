@@ -3,6 +3,7 @@ import multi_image_process
 import os
 import sys
 import pathlib
+import shutil
 class TempDirSet(object):
     def __init__(self) -> None:
         (self.__temp_dir,
@@ -44,8 +45,8 @@ def delete_temp_dirs(tds:TempDirSet):
     paths = (pathlib.Path(f) for f in [tds.audio_output_dir,tds.frame_split_dir,tds.image_processing_dir])
     paths = ([f] if f.exists() else [] for f in paths)
     paths = (g for f in paths for g in f)
-    for f in paths:
-        os.removedirs(str(f))
+    for f in paths:        
+        shutil.rmtree(str(f))
 def split_to_frames(ffmpeg_executable_path:str,movie_input_path:str,output_movie_size:str,movie_frame_rate:float,tds:TempDirSet):
     args=[g for f in [[ffmpeg_executable_path,'-i',movie_input_path],['-s',output_movie_size] if output_movie_size is not None else [],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else[],['-c:v','png','-f','image2',f'{tds.frame_split_dir}/frame_%09d.png']] for g in f]
     preprocess=subprocess.Popen(args=args,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
@@ -57,7 +58,7 @@ def extract_audio(ffmpeg_executable_path:str,movie_input_path:str,tds:TempDirSet
     preprocess_code=preprocess.wait()
     return preprocess_code == 0   
 def create_output_movie(ffmpeg_executable_path:str,movie_frame_rate:float,tds:TempDirSet,use_audio:bool,movie_output_path:str):
-    args=[g for f in [[ffmpeg_executable_path,'-i',f'{tds.image_processing_dir}/frame_%09d.png'],['-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=44100'] if not use_audio else ['-i',f'{tds.audio_output_dir}/audio_extract.mka'],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else [],['-c:v','libx264','-crf','17','-preset','veryslow','-c:a','aac','-ab','192k','-ar','44100','-ac','2','-f','mp4','-shortest',movie_output_path]] for g in f]
+    args=[g for f in [[ffmpeg_executable_path,'-i',f'{tds.image_processing_dir}/frame_%09d.png'],['-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=44100'] if not use_audio else ['-i',f'{tds.audio_output_dir}/audio_extract.mka'],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else [],['-c:v','libx264','-crf','17','-preset','veryslow','-c:a','aac','-ab','192k','-ar','44100','-ac','2','-pix_fmt','yuv420p','-f','mp4','-shortest',movie_output_path]] for g in f]
     preprocess=subprocess.Popen(args=args,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
     preprocess_code=preprocess.wait()
     return preprocess_code == 0
