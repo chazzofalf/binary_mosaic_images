@@ -2,6 +2,7 @@ import subprocess
 import multi_image_process
 import os
 import sys
+import pathlib
 class TempDirSet(object):
     def __init__(self) -> None:
         (self.__temp_dir,
@@ -24,7 +25,8 @@ class TempDirSet(object):
         return self.__temp_dir_audio
     @audio_output_dir.setter
     def audio_output_dir(self,audio_output_dir):
-        self.__temp_dir_audio = audio_output_dir
+        self.__temp_dir_audio = audio_output_dir    
+        
         
 def create_temp_dirs(movie_input_path:str,use_audio:bool):
     out=TempDirSet()
@@ -38,7 +40,12 @@ def create_temp_dirs(movie_input_path:str,use_audio:bool):
     (out.frame_split_dir,out.image_processing_dir,out.audio_output_dir) = \
     (temp_dir,temp_dir_out,temp_dir_audio)
     return out
-    
+def delete_temp_dirs(tds:TempDirSet):
+    paths = (pathlib.Path(f) for f in [tds.audio_output_dir,tds.frame_split_dir,tds.image_processing_dir])
+    paths = ([f] if f.exists() else [] for f in paths)
+    paths = (g for f in paths for g in f)
+    for f in paths:
+        os.removedirs(str(f))
 def split_to_frames(ffmpeg_executable_path:str,movie_input_path:str,output_movie_size:str,movie_frame_rate:float,tds:TempDirSet):
     args=[g for f in [[ffmpeg_executable_path,'-i',movie_input_path],['-s',output_movie_size] if output_movie_size is not None else [],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else[],['-c:v','png','-f','image2',f'{tds.frame_split_dir}/frame_%09d.png']] for g in f]
     preprocess=subprocess.Popen(args=args,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
@@ -56,8 +63,11 @@ def create_output_movie(ffmpeg_executable_path:str,movie_frame_rate:float,tds:Te
     return preprocess_code == 0
 def main(ffmpeg_executable_path: str,movie_input_path: str,movie_output_path: str, output_movie_size: str=None, movie_frame_rate: float=None,color_hex: str=None,invert: bool=False,cell_invert: bool=False,use_audio=False):    
     tds = create_temp_dirs(movie_input_path=movie_input_path,use_audio=use_audio)
+    
     if use_audio:
         success = extract_audio(ffmpeg_executable_path=ffmpeg_executable_path,movie_input_path=movie_input_path)
+    else:
+        success = True
     if not success:
         sys.stderr.write(f'Failed in audio extraction\n')
         return 1
@@ -70,6 +80,7 @@ def main(ffmpeg_executable_path: str,movie_input_path: str,movie_output_path: st
     if not success:
         sys.stderr.write(f'Failed in final movie export\n')
         return 1
+    delete_temp_dirs(tds=tds)
     return 0
     
 
