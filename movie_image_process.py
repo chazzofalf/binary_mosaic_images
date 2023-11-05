@@ -65,7 +65,7 @@ def main(ffmpeg_executable_path: str,movie_input_path: str,movie_output_path: st
     tds = create_temp_dirs(movie_input_path=movie_input_path,use_audio=use_audio)
     
     if use_audio:
-        success = extract_audio(ffmpeg_executable_path=ffmpeg_executable_path,movie_input_path=movie_input_path)
+        success = extract_audio(ffmpeg_executable_path=ffmpeg_executable_path,movie_input_path=movie_input_path,tds=tds)
     else:
         success = True
     if not success:
