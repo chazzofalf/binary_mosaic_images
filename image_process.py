@@ -42,8 +42,8 @@ def main(img_name:str,img_out_name:str,colorhex:str=None,invert=False,cell_inver
         for x in range(0,img_sectors_max_x):
             if isinstance(lookup[-1],list) and isinstance(anti_lookup[-1],list):
                 lookup[-1].append(sum((get_pixel(x*5+xd,y*5+yd,img) for yd in range(0,5) for xd in range(0,5)))//25)
-                anti_lookup[-1].append(255-lookup[-1][-1])    
-                    
+                anti_lookup[-1].append(255-lookup[-1][-1])            
+    imgout=PIL.Image.new('L',img.size)                
     for y in range(0,img.height):
         for x in range(0,img.width):
             try:
