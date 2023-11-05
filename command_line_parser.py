@@ -1,7 +1,8 @@
 from typing import Any
-
+from sys import argv
 
 class CommandLineValue(object):
+    
     def __init__(self,value:Any) -> None:
         self.__yes_values = ['y','yes','t','true','1']
         self.__no_values = ['n','no','f','false','0']
@@ -56,16 +57,85 @@ class CommandLineValue(object):
             raise ValueError()
 
 class CommandLineParser(object):
+    def validate(self,args:list[str]):
+        return CommandLineParser.__self_validate(args=args)
+    @classmethod
+    def __self_validate(cls,args:list[str]):
+        vo=cls()
+        try:
+            vo.parse_args(args)
+        except:
+            return False
+        return True
     def __init__(self) -> None:
-        self.__args=dict()
+        self.__args:dict[str,list[CommandLineValue]]=dict()
         self.__executable=None
         self.__key_set=False
+        self.__key=None
+        self.__escape=False
     def parse_args(self,args:list[str]):
         for f in args:
             self.parse_arg(f)
+    def add_to_key(self,key:str,value:Any):
+        if key not in self.__args.keys():
+            self.__args[key] = []
+        self.__args[key].append(CommandLineValue(value=value))
     def parse_arg(self,arg:str):
         if self.__executable is None:
             self.__executable = arg
         elif not self.__key_set:
-            pass # Stop point WIP
-    
+            if arg == '--':
+                raise ValueError()
+            elif arg == '-':
+                raise ValueError()
+            elif arg.startswith('--'):
+                self.__key = arg[2:]
+                self.__key_set=True
+            elif arg.startswith('-'):
+                self.parse_args([f'--{c}' for c in arg[1:]])
+            else:
+                raise ValueError()
+        elif not self.__escape:
+            if arg == '--':
+                self.__escape = True
+            elif arg == '-':  
+                self.add_to_key(self.__key,'-')                          
+            elif arg.startswith('--'):
+                self.add_to_key(self.__key,True)
+                self.__key = arg[2:]
+            elif arg.startswith('-'):          
+                self.parse_args([f'--{c}' for c in arg[1:]])
+            else:
+                self.add_to_key(self.__key,arg)
+                self.__key_set = False
+        else:
+            self.add_to_key(self.__key,arg)
+            self.__key_set = False
+            self.__escape = False
+    def iterate(self):
+        return ((key,value) for key in self.__args.keys() for value in self.__args[key]) 
+class BaseCommandLineOptions(object):
+    def __init__(self) -> None:
+        pass
+    def do_something_with(self,key:str,value:CommandLineValue):
+        print(f'{key} = {value.string_value}')
+class BaseCommandLineHydrator(object):
+    def __init__(self) -> None:
+        pass
+    def hydrate(self,args:CommandLineParser):
+        bclo = BaseCommandLineOptions()
+        for (key,value) in args.iterate():
+            self.hydrate_arg(key=key,value=value,bclo=bclo)
+        return bclo
+    def hydrate_arg(self,key:str,value:CommandLineValue,bclo:BaseCommandLineOptions):
+        bclo.do_something_with(key,value) # ABSTRACT
+        # Does nothing but print stuff for debugging here but it this were a actual hydrator class then it would set the proper value in the BaseCommandLineOptions subclass with any error handling/processing logic
+        
+if __name__=='__main__':
+    cp=CommandLineParser()
+    if cp.validate(argv):                
+        cp.parse_args(argv)
+        bclh=BaseCommandLineHydrator()
+        bclh.hydrate(cp)
+    else:
+        print('Not valid args')
