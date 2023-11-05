@@ -75,7 +75,7 @@ def main(ffmpeg_executable_path: str,movie_input_path: str,movie_output_path: st
     if not success:
         sys.stderr.write(f'Failed in movie preprocessing\n')
         return 1    
-    multi_image_process.main(input_directory=tds.frame_split_dir,output_dir=tds.image_processing_dir,colorhex=color_hex,invert=invert,cell_invert=cell_invert)
+    multi_image_process.main(input_directory=tds.frame_split_dir,output_dir=tds.image_processing_dir,colorhex=color_hex,invert=invert,cell_invert=cell_invert,multiprocessing=True)
     success = create_output_movie(ffmpeg_executable_path=ffmpeg_executable_path,movie_frame_rate=movie_frame_rate,tds=tds,use_audio=use_audio,movie_output_path=movie_output_path)
     if not success:
         sys.stderr.write(f'Failed in final movie export\n')

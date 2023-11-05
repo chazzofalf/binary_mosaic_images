@@ -76,7 +76,9 @@ if __name__=='__main__':
     if len(sys.argv) == 3:
         main(img_name=sys.argv[1],img_out_name=sys.argv[2])
     elif len(sys.argv) == 4:
-        main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3])
+        main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3] if len(sys.argv[3]) > 0 else None)
     elif len(sys.argv) == 5:
-        main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3],cell_invert=sys.argv[4].lower() in ['y','t','yes','true','1'])
+        main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3] if len(sys.argv[3]) > 0 else None,invert=sys.argv[4].lower() in ['y','t','yes','true','1'] if len(sys.argv[4]) > 0 else None)
+    elif len(sys.argv) == 6:
+        main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3] if len(sys.argv[3]) > 0 else None,invert=sys.argv[4].lower() in ['y','t','yes','true','1'] if len(sys.argv[4]) > 0 else None,cell_invert=sys.argv[5].lower() in ['y','t','yes','true','1'] if len(sys.argv[5]) > 0 else None)
         
