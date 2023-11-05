@@ -40,8 +40,7 @@ class ImageProcessing(object):
             return self.get_sector_pixel(x,y,lookup)
     def process(self,img_name:str,img_out_name:str,colorhex:str=None,invert=False,cell_invert=False):
         img=PIL.Image.open(img_name)
-        img=img.convert(mode='L')
-        #img.save('___.png')
+        img=img.convert(mode='L')        
         (img_width,img_height)=(img.width,img.height)
         lookup=[]
         anti_lookup=[]

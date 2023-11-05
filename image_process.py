@@ -2,12 +2,6 @@ import PIL
 import PIL.Image
 import math
 import sys
-# img_name='fav_tunnel_gray8.png'
-img_name='jesus_gray.png'
-# img_out_name='future_process.png'
-img_out_name='jesus_out.png'
-
-
 
 def get_pixel(x: int, y: int,img: PIL.Image.Image):
     return img.getpixel((x % img.width,y % img.height))
