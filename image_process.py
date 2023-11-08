@@ -70,11 +70,11 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             self.__set_invert_call(key=key,value=value)
         def set_cell_invert_call(key:str,value:command_line_parser.CommandLineValue):
             self.__set_cell_invert_call(key=key,value=value)
-        self._populate_option('img_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='The name of the input image',hydrate_action=set_img_name_call))
-        self._populate_option('img_out_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='The name of the output image',hydrate_action=set_img_out_name_call))
-        self._populate_option('colorhex',command_line_parser.BaseHelpfulCommandLineOption(help_text='The general color of the output image',hydrate_action=set_colorhex_call))
-        self._populate_option('invert',command_line_parser.BaseHelpfulCommandLineOption(help_text='Whether to invert the colors of the image or not',hydrate_action=set_invert_call))
-        self._populate_option('cell_invert',command_line_parser.BaseHelpfulCommandLineOption(help_text='Whether to invert the grayscale base of the colors of the cells within the image or not',hydrate_action=set_cell_invert_call))
+        self._populate_option('img_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='--img_name The name of the input image',hydrate_action=set_img_name_call))
+        self._populate_option('img_out_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='--img_out_name The name of the output image',hydrate_action=set_img_out_name_call))
+        self._populate_option('colorhex',command_line_parser.BaseHelpfulCommandLineOption(help_text='--colorhex The general color of the output image',hydrate_action=set_colorhex_call))
+        self._populate_option('invert',command_line_parser.BaseHelpfulCommandLineOption(help_text='--invert Whether to invert the colors of the image or not',hydrate_action=set_invert_call))
+        self._populate_option('cell_invert',command_line_parser.BaseHelpfulCommandLineOption(help_text='--cell_invert Whether to invert the grayscale base of the colors of the cells within the image or not',hydrate_action=set_cell_invert_call))
 
 
 def get_pixel(x: int, y: int,img: PIL.Image.Image):
@@ -209,8 +209,9 @@ if __name__=='__main__':
         out:list[ImageProcessCommandLineArgs]=[]
         ex_out:list[Exception]=[]
         if bclh.hydrate_and_validate(cp,out,ex_out):
-            outx=out[0]
-            main(args=outx)
+            outx=out[0]            
+            if not outx.help:                
+                main(args=outx)
         else:
             print('Not valid args')
             traceback.print_exception(ex_out[0])

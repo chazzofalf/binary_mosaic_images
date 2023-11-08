@@ -26,13 +26,13 @@ class CommandLineValue(object):
             self.__value=string_value
         else:
             raise ValueError()
-    def __not_a_valid_bool_value() -> bool:
+    def __not_a_valid_bool_value(self) -> bool:
         raise ValueError()
     
     
     @property
     def bool_value(self) -> bool:
-        True if self.string_value.lower() in [self.__yes_values] else False if self.string_value.lower() in [self.__no_values] else self.__not_a_valid_bool_value()
+        return True if self.string_value.lower() in self.__yes_values else False if self.string_value.lower() in self.__no_values else self.__not_a_valid_bool_value()
     @bool_value.setter
     def bool_value(self,bool_value:bool):
         if isinstance(bool_value,bool):
@@ -78,6 +78,8 @@ class CommandLineParser(object):
     def parse_args(self,args:list[str]):
         for f in args:
             self.parse_arg(f)
+        if self.__key_set:
+            self.add_to_key(self.__key,True)
     def add_to_key(self,key:str,value:Any):
         if key not in self.__args.keys():
             self.__args[key] = []
@@ -136,14 +138,22 @@ class BaseHelpfulCommandLineOptions(BaseCommandLineOptions):
     def __init__(self) -> None:
         super().__init__()
         self.__options:dict[str,BaseHelpfulCommandLineOption] = dict()
+        self.__helpv:bool=False
         self.__populate_all_options()
+        
+    @property
+    def help(self):
+        return self.__helpv
     def __populate_help_options(self):
+        #print('Help options populated')
         def help_cmd(key:str,value:CommandLineValue):
+            #print(f'Help cmd called with key {key} and value {value.string_value}/{value.bool_value}')
             if key in ['help','h'] and value.bool_value:
                 self.__help()
-        help_option = BaseHelpfulCommandLineOption(help_text='Brings up this help menu',hydrate_action=help_cmd)
-        self.__options['help'] = help_option
-        self.__options['h'] = help_option 
+            else:
+                raise ValueError()        
+        self.__options['help'] = BaseHelpfulCommandLineOption(help_text='--help Brings up this help menu',hydrate_action=help_cmd)
+        self.__options['h'] = BaseHelpfulCommandLineOption(help_text='-h Brings up this help menu',hydrate_action=help_cmd) 
     def _populate_option(self,key:str,value:BaseHelpfulCommandLineOption):
         if key not in self.__options.keys():
             self.__options[key] = value
@@ -156,7 +166,7 @@ class BaseHelpfulCommandLineOptions(BaseCommandLineOptions):
         self._populate_options()
     def __help(self):
         print(linesep.join([g for f in [[f'{argv[0]}:'],[''],[f.help_text for f in self.__options.values()],['']] for g in f]))        
-        
+        self.__helpv=True
     def hydrate_arg(self, key: str, value: CommandLineValue):
         if key in self.__options.keys() and not self.__options[key] is None:
             self.__options[key].hydrate_action(key,value)
