@@ -1,5 +1,7 @@
-from typing import Any
+from typing import Any, Callable
 from sys import argv
+from io import BytesIO,TextIOWrapper
+from os import linesep
 
 class CommandLineValue(object):
     
@@ -117,25 +119,87 @@ class CommandLineParser(object):
 class BaseCommandLineOptions(object):
     def __init__(self) -> None:
         pass
-    def do_something_with(self,key:str,value:CommandLineValue):
+    def hydrate_arg(self,key:str,value:CommandLineValue):
         print(f'{key} = {value.string_value}')
+        
+class BaseHelpfulCommandLineOption(object):
+    def __init__(self,help_text:str,hydrate_action:Callable[[str,CommandLineValue],None]) -> None:        
+        self.__help_text = help_text
+        self.__hydrate_action = hydrate_action    
+    @property
+    def help_text(self):
+        return self.__help_text
+    @property
+    def hydrate_action(self):
+        return self.__hydrate_action
+class BaseHelpfulCommandLineOptions(BaseCommandLineOptions):
+    def __init__(self) -> None:
+        super().__init__()
+        self.__options:dict[str,BaseHelpfulCommandLineOption] = dict()
+        self.__populate_all_options()
+    def __populate_help_options(self):
+        def help_cmd(key:str,value:CommandLineValue):
+            if key in ['help','h'] and value.bool_value:
+                self.__help()
+        help_option = BaseHelpfulCommandLineOption(help_text='Brings up this help menu',hydrate_action=help_cmd)
+        self.__options['help'] = help_option
+        self.__options['h'] = help_option 
+    def _populate_option(self,key:str,value:BaseHelpfulCommandLineOption):
+        if key not in self.__options.keys():
+            self.__options[key] = value
+        else:
+            raise ValueError()
+    def _populate_options(self) -> None:
+        pass
+    def __populate_all_options(self) -> None:
+        self.__populate_help_options()
+        self._populate_options()
+    def __help(self):
+        print(linesep.join([g for f in [[f'{argv[0]}:'],[''],[f.help_text for f in self.__options.values()],['']] for g in f]))        
+        
+    def hydrate_arg(self, key: str, value: CommandLineValue):
+        if key in self.__options.keys() and not self.__options[key] is None:
+            self.__options[key].hydrate_action(key,value)
+        else:            
+            raise ValueError(f'Key "{key}" is invalid. Valid keys are: ' + " ".join([f for f in self.__options.keys()]))  
+        #return super().hydrate_arg(key, value)
+    
+
 class BaseCommandLineHydrator(object):
     def __init__(self) -> None:
         pass
+    def hydrate_and_validate(self,args:CommandLineParser,output:list[BaseCommandLineOptions],exceptions:list[Exception]):
+        try:
+            outv=self.hydrate(args)
+            output.append(outv)
+            return True
+        except Exception as e:
+            exceptions.append(e)
+            return False
+    def _createOptions(self):
+        return BaseCommandLineOptions()
     def hydrate(self,args:CommandLineParser):
-        bclo = BaseCommandLineOptions()
+        bclo = self._createOptions()
         for (key,value) in args.iterate():
             self.hydrate_arg(key=key,value=value,bclo=bclo)
         return bclo
     def hydrate_arg(self,key:str,value:CommandLineValue,bclo:BaseCommandLineOptions):
-        bclo.do_something_with(key,value) # ABSTRACT
+        bclo.hydrate_arg(key,value) # ABSTRACT
         # Does nothing but print stuff for debugging here but it this were a actual hydrator class then it would set the proper value in the BaseCommandLineOptions subclass with any error handling/processing logic
-        
-if __name__=='__main__':
+
+class BaseHelpfulCommandLineHydrator(BaseCommandLineHydrator):
+    def __init__(self) -> None:
+        super().__init__()
+    def _createOptions(self):
+        return BaseHelpfulCommandLineOptions()
+def validate_and_hydrate_args(bclh:BaseCommandLineHydrator):
     cp=CommandLineParser()
     if cp.validate(argv):                
-        cp.parse_args(argv)
-        bclh=BaseCommandLineHydrator()
-        bclh.hydrate(cp)
+        cp.parse_args(argv)        
+        return bclh.hydrate(cp)
     else:
         print('Not valid args')
+        
+if __name__ == '__main__':
+    validate_and_hydrate_args(bclh=BaseCommandLineHydrator())
+    cp=CommandLineParser()

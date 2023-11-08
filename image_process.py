@@ -1,8 +1,81 @@
 import PIL
 import PIL.Image
 import PIL.ImageDraw
+import command_line_parser 
 import math
-import sys
+import traceback
+from sys import argv
+
+class ImageProcessCommandLineArgsHydrator(command_line_parser.BaseHelpfulCommandLineHydrator):
+    def __init__(self) -> None:
+        super().__init__()
+    def _createOptions(self):
+        return ImageProcessCommandLineArgs()
+class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOptions):
+    def __init__(self):
+        super().__init__()
+        self.__img_name:str=None
+        self.__img_out_name:str=None
+        self.__colorhex:str=None
+        self.__invert:bool=None
+        self.__cell_invert:bool=None
+    @property 
+    def img_name(self):
+        return self.__img_name
+    @property 
+    def img_out_name(self):
+        return self.__img_out_name
+    @property 
+    def colorhex(self):
+        return self.__colorhex
+    @property 
+    def invert(self):
+        return self.__invert
+    @property 
+    def cell_invert(self):
+        return self.__cell_invert
+    def __set_img_name(self,key:str,value:command_line_parser.CommandLineValue):
+        if key == 'img_name' and self.__img_name is None:
+            self.__img_name = value.string_value        
+        else:
+            raise ValueError()
+    def __set_img_out_name_call(self,key:str,value:command_line_parser.CommandLineValue):
+        if key == 'img_out_name' and self.__img_out_name is None:
+            self.__img_out_name = value.string_value        
+        else:
+            raise ValueError()
+    def __set_colorhex_call(self,key:str,value:command_line_parser.CommandLineValue):
+        if key == 'colorhex' and self.__colorhex is None:
+            self.__colorhex = value.string_value        
+        else:
+            raise ValueError()
+    def __set_invert_call(self,key:str,value:command_line_parser.CommandLineValue):
+        if key == 'invert' and self.__invert is None:
+            self.__invert = value.bool_value        
+        else:
+            raise ValueError()
+    def __set_cell_invert_call(self,key:str,value:command_line_parser.CommandLineValue):
+        if key == 'cell_invert' and self.__cell_invert is None:
+            self.__cell_invert = value.bool_value        
+        else:
+            raise ValueError()
+    def _populate_options(self):
+        def set_img_name_call(key:str,value:command_line_parser.CommandLineValue):
+            self.__set_img_name(key=key,value=value)
+        def set_img_out_name_call(key:str,value:command_line_parser.CommandLineValue):
+            self.__set_img_out_name_call(key=key,value=value)
+        def set_colorhex_call(key:str,value:command_line_parser.CommandLineValue):
+            self.__set_colorhex_call(key=key,value=value)
+        def set_invert_call(key:str,value:command_line_parser.CommandLineValue):
+            self.__set_invert_call(key=key,value=value)
+        def set_cell_invert_call(key:str,value:command_line_parser.CommandLineValue):
+            self.__set_cell_invert_call(key=key,value=value)
+        self._populate_option('img_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='The name of the input image',hydrate_action=set_img_name_call))
+        self._populate_option('img_out_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='The name of the output image',hydrate_action=set_img_out_name_call))
+        self._populate_option('colorhex',command_line_parser.BaseHelpfulCommandLineOption(help_text='The general color of the output image',hydrate_action=set_colorhex_call))
+        self._populate_option('invert',command_line_parser.BaseHelpfulCommandLineOption(help_text='Whether to invert the colors of the image or not',hydrate_action=set_invert_call))
+        self._populate_option('cell_invert',command_line_parser.BaseHelpfulCommandLineOption(help_text='Whether to invert the grayscale base of the colors of the cells within the image or not',hydrate_action=set_cell_invert_call))
+
 
 def get_pixel(x: int, y: int,img: PIL.Image.Image):
     return img.getpixel((x % img.width,y % img.height))
@@ -65,11 +138,11 @@ def colorize_image(img:PIL.Image,colorhex:str,invert:bool):
                 tempimgout.putpixel((x,y),(256-imgout.getpixel((x,y))[0],256-imgout.getpixel((x,y))[1],256-imgout.getpixel((x,y))[2]))          
         imgout=tempimgout
     return imgout
-def main(img_name:str,img_out_name:str,colorhex:str=None,invert=False,cell_invert=False):
-    img=PIL.Image.open(img_name)
+def main(args:ImageProcessCommandLineArgs):
+    img=PIL.Image.open(args.img_name)
     img=img.convert(mode='L')
     bit_palette=[bitblock(bytex=f) for f in range(0,256)]
-    bit_palette=[colorize_image(f,colorhex=colorhex,invert=invert) for f in bit_palette]
+    bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert) for f in bit_palette]
     #bit_palette[0].show()
     #bit_palette[255].show()
     #bit_palette[127].show()
@@ -123,15 +196,33 @@ def main(img_name:str,img_out_name:str,colorhex:str=None,invert=False,cell_inver
     #             tempimgout.putpixel((x,y),(256-imgout.getpixel((x,y))[0],256-imgout.getpixel((x,y))[1],256-imgout.getpixel((x,y))[2]))          
     #     imgout=tempimgout
     #imgout.show()
-    imgout.save(img_out_name)
-    
+    imgout.save(args.img_out_name)
+
+
+
+
 if __name__=='__main__':
-    if len(sys.argv) == 3:
-        main(img_name=sys.argv[1],img_out_name=sys.argv[2])
-    elif len(sys.argv) == 4:
-        main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3] if len(sys.argv[3]) > 0 else None)
-    elif len(sys.argv) == 5:
-        main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3] if len(sys.argv[3]) > 0 else None,invert=sys.argv[4].lower() in ['y','t','yes','true','1'] if len(sys.argv[4]) > 0 else None)
-    elif len(sys.argv) == 6:
-        main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3] if len(sys.argv[3]) > 0 else None,invert=sys.argv[4].lower() in ['y','t','yes','true','1'] if len(sys.argv[4]) > 0 else None,cell_invert=sys.argv[5].lower() in ['y','t','yes','true','1'] if len(sys.argv[5]) > 0 else None)
+    cp=command_line_parser.CommandLineParser()
+    if cp.validate(argv):                
+        cp.parse_args(argv)    
+        bclh = ImageProcessCommandLineArgsHydrator()
+        out:list[ImageProcessCommandLineArgs]=[]
+        ex_out:list[Exception]=[]
+        if bclh.hydrate_and_validate(cp,out,ex_out):
+            outx=out[0]
+            main(args=outx)
+        else:
+            print('Not valid args')
+            traceback.print_exception(ex_out[0])
+    else:
+        print('Not valid args')
+    #validate_and_hydrate_args()
+    # if len(sys.argv) == 3:
+    #     main(img_name=sys.argv[1],img_out_name=sys.argv[2])
+    # elif len(sys.argv) == 4:
+    #     main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3] if len(sys.argv[3]) > 0 else None)
+    # elif len(sys.argv) == 5:
+    #     main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3] if len(sys.argv[3]) > 0 else None,invert=sys.argv[4].lower() in ['y','t','yes','true','1'] if len(sys.argv[4]) > 0 else None)
+    # elif len(sys.argv) == 6:
+    #     main(img_name=sys.argv[1],img_out_name=sys.argv[2],colorhex=sys.argv[3] if len(sys.argv[3]) > 0 else None,invert=sys.argv[4].lower() in ['y','t','yes','true','1'] if len(sys.argv[4]) > 0 else None,cell_invert=sys.argv[5].lower() in ['y','t','yes','true','1'] if len(sys.argv[5]) > 0 else None)
         
