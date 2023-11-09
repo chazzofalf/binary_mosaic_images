@@ -215,7 +215,7 @@ def extract_audio(ffmpeg_executable_path:str,movie_input_path:str,tds:TempDirSet
     preprocess_code=preprocess.wait()
     return preprocess_code == 0   
 def create_output_movie(ffmpeg_executable_path:str,movie_frame_rate:float,tds:TempDirSet,use_audio:bool,movie_output_path:str,overwrite:bool):
-    args=[g for f in [[ffmpeg_executable_path,'-i',f'{tds.image_processing_dir}/frame_%09d.png'],['-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=44100'] if not use_audio else ['-i',f'{tds.audio_output_dir}/audio_extract.mka'],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else [],['-y'] if overwrite else [],['-c:v','libx264','-crf','17','-preset','veryslow','-c:a','aac','-ab','192k','-ar','44100','-ac','2','-pix_fmt','yuv420p','-f','mp4','-shortest',movie_output_path]] for g in f]
+    args=[g for f in [[ffmpeg_executable_path],[] if movie_frame_rate is None else ['-r',str(movie_frame_rate)],['-i',f'{tds.image_processing_dir}/frame_%09d.png'],['-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=44100'] if not use_audio else ['-i',f'{tds.audio_output_dir}/audio_extract.mka'],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else [],['-y'] if overwrite else [],['-c:v','libx264','-crf','17','-preset','veryslow','-c:a','aac','-ab','192k','-ar','44100','-ac','2','-pix_fmt','yuv420p','-f','mp4','-shortest',movie_output_path]] for g in f]
     preprocess=subprocess.Popen(args=args,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
     preprocess_code=preprocess.wait()
     return preprocess_code == 0
