@@ -29,6 +29,10 @@ class CommandLineValue(object):
     def __not_a_valid_bool_value(self) -> bool:
         raise ValueError()
     
+    @classmethod
+    def bool_as_string(cls,value:bool) -> str:
+        cv=cls(value)
+        return cv.string_value
     
     @property
     def bool_value(self) -> bool:
@@ -140,8 +144,9 @@ class BaseHelpfulCommandLineOptions(BaseCommandLineOptions):
         self.__options:dict[str,BaseHelpfulCommandLineOption] = dict()
         self.__helpv:bool=False
         self.__populate_all_options()
-        
-    @property
+    def validate(self) -> bool:
+        return True
+    @property            
     def help(self):
         return self.__helpv
     def __populate_help_options(self):
