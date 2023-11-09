@@ -30,18 +30,35 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
     @property 
     def img_name(self):
         return self.__img_name
+    @img_name.setter
+    def img_name(self,img_name:str):
+        self.__img_name=img_name        
     @property 
     def img_out_name(self):
         return self.__img_out_name
+    @img_out_name.setter
+    def img_out_name(self,img_out_name:str):
+        self.__img_out_name=img_out_name
     @property 
     def colorhex(self):
         return self.__colorhex
+    @colorhex.setter
+    def colorhex(self,colorhex:str):
+        self.__colorhex=colorhex
     @property 
     def invert(self):
         return self.__invert
+    @invert.setter
+    def invert(self,invert:bool):
+        self.__invert=invert
     @property 
     def cell_invert(self):
         return self.__cell_invert
+    @cell_invert.setter
+    def cell_invert(self,cell_invert):
+        self.__cell_invert=cell_invert
+    
+    
     def __set_img_name(self,key:str,value:command_line_parser.CommandLineValue):
         if key == 'img_name' and self.__img_name is None:
             self.__img_name = value.string_value        
