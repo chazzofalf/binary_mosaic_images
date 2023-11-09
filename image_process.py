@@ -26,7 +26,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         return self.img_name is not None and \
             self.img_out_name is not None
     def validate(self) -> bool:
-        return super().validate() and self.__sub_validate(self)
+        return super().validate() and self.__sub_validate()
     @property 
     def img_name(self):
         return self.__img_name
