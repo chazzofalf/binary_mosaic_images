@@ -149,10 +149,8 @@ class BaseHelpfulCommandLineOptions(BaseCommandLineOptions):
     @property            
     def help(self):
         return self.__helpv
-    def __populate_help_options(self):
-        #print('Help options populated')
-        def help_cmd(key:str,value:CommandLineValue):
-            #print(f'Help cmd called with key {key} and value {value.string_value}/{value.bool_value}')
+    def __populate_help_options(self):        
+        def help_cmd(key:str,value:CommandLineValue):            
             if key in ['help','h'] and value.bool_value:
                 self.__help()
             else:
@@ -176,10 +174,7 @@ class BaseHelpfulCommandLineOptions(BaseCommandLineOptions):
         if key in self.__options.keys() and not self.__options[key] is None:
             self.__options[key].hydrate_action(key,value)
         else:            
-            raise ValueError(f'Key "{key}" is invalid. Valid keys are: ' + " ".join([f for f in self.__options.keys()]))  
-        #return super().hydrate_arg(key, value)
-    
-
+            raise ValueError(f'Key "{key}" is invalid. Valid keys are: ' + " ".join([f for f in self.__options.keys()]))              
 class BaseCommandLineHydrator(object):
     def __init__(self) -> None:
         pass
