@@ -7,6 +7,7 @@ import time
 import command_line_parser
 import traceback
 from command_line_parser import CommandLineValue
+
 bconvert=CommandLineValue.bool_as_string
 class MultiImageCommandLineOptionsHydrator(command_line_parser.BaseHelpfulCommandLineHydrator):
     def __init__(self) -> None:
@@ -56,34 +57,55 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         def set_reset_output_dir_cmd(key:str,value:command_line_parser.CommandLineValue):
             if key == 'reset_output_dir' and self.__reset_output_dir is None:
                 self.__reset_output_dir = value.bool_value
-        self._populate_option('input_directory',command_line_parser.BaseHelpfulCommandLineOption('',set_input_directory_cmd))
-        self._populate_option('output_dir',command_line_parser.BaseHelpfulCommandLineOption('',set_output_dir_cmd))
-        self._populate_option('colorhex',command_line_parser.BaseHelpfulCommandLineOption('',set_colorhex_cmd))
-        self._populate_option('invert',command_line_parser.BaseHelpfulCommandLineOption('',set_invert_cmd))
-        self._populate_option('cell_invert',command_line_parser.BaseHelpfulCommandLineOption('',set_cell_invert_cmd))
-        self._populate_option('multiprocessing',command_line_parser.BaseHelpfulCommandLineOption('',set_multiprocessing_cmd))
-        self._populate_option('reset_output_dir',command_line_parser.BaseHelpfulCommandLineOption('',set_reset_output_dir_cmd))
+        self._populate_option('input_directory',command_line_parser.BaseHelpfulCommandLineOption('--input_directory The original folder containing an set of image files.',set_input_directory_cmd))
+        self._populate_option('output_dir',command_line_parser.BaseHelpfulCommandLineOption('--output_dir The folder to place output files.',set_output_dir_cmd))
+        self._populate_option('colorhex',command_line_parser.BaseHelpfulCommandLineOption('--colorHex The general color of output images.',set_colorhex_cmd))
+        self._populate_option('invert',command_line_parser.BaseHelpfulCommandLineOption('--invert Invert The colors of the images',set_invert_cmd))
+        self._populate_option('cell_invert',command_line_parser.BaseHelpfulCommandLineOption('--cell_invert Invert the colors of the cells in the images',set_cell_invert_cmd))
+        self._populate_option('multiprocessing',command_line_parser.BaseHelpfulCommandLineOption('--multiprocessing Process multiple images at once',set_multiprocessing_cmd))
+        self._populate_option('reset_output_dir',command_line_parser.BaseHelpfulCommandLineOption('--reset_output_dir Delete the output folder. Confirms overwriting.',set_reset_output_dir_cmd))
     @property 
     def reset_output_dir(self):
         return self.__reset_output_dir
+    @reset_output_dir.setter
+    def reset_output_dir(self,reset_output_dir:str):
+        self.__reset_output_dir=reset_output_dir
     @property
     def input_directory(self):
         return self.__input_directory
+    @input_directory.setter
+    def input_directory(self,input_directory:str):
+        self.__input_directory=input_directory
     @property
     def output_dir(self):
         return self.__output_dir
+    @output_dir.setter
+    def output_dir(self,output_dir:str):
+        self.__output_dir=output_dir
     @property
     def colorhex(self):
         return self.__colorhex
+    @colorhex.setter
+    def colorhex(self,colorhex:str):
+        self.__colorhex=colorhex
     @property
     def invert(self):
         return self.__invert
+    @invert.setter
+    def invert(self,invert:bool):
+        self.__invert=invert
     @property
     def cell_invert(self):
         return self.__cell_invert
+    @cell_invert.setter
+    def cell_invert(self,cell_invert:bool):
+        self.__cell_invert=cell_invert
     @property
     def multiprocessing(self):
         return self.__multiprocessing
+    @multiprocessing.setter
+    def multiprocessing(self,multiprocessing:bool):
+        self.__multiprocessing=multiprocessing
         
 
 
@@ -133,8 +155,14 @@ def main(args:MultiImageCommandLineOptions):
     for input_entity in ipath.iterdir():
         name=str(input_entity.relative_to(args.input_directory))        
         output=opath.joinpath(name)
-        if not args.multiprocessing:        
-            image_process.main(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert)    
+        if not args.multiprocessing:     
+            iargs=image_process.ImageProcessCommandLineArgs()
+            iargs.img_name=str(input_entity)
+            iargs.img_out_name=str(output)
+            iargs.colorhex=args.colorhex
+            iargs.invert=args.invert
+            iargs.cell_invert=args.cell_invert
+            image_process.main(args=iargs)
         else:
             subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,ppool=ppool)
     if args.multiprocessing:
