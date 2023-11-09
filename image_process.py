@@ -19,6 +19,14 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self.__colorhex:str=None
         self.__invert:bool=None
         self.__cell_invert:bool=None
+    def __fill_autos(self):
+        (self.__invert,self.__cell_invert) = (False,False)
+    def __sub_validate(self):
+        self.__fill_autos()
+        return self.img_name is not None and \
+            self.img_out_name is not None
+    def validate(self) -> bool:
+        return super().validate() and self.__sub_validate(self)
     @property 
     def img_name(self):
         return self.__img_name
@@ -210,7 +218,7 @@ if __name__=='__main__':
         ex_out:list[Exception]=[]
         if bclh.hydrate_and_validate(cp,out,ex_out):
             outx=out[0]            
-            if not outx.help:                
+            if outx.validate() and not outx.help:                
                 main(args=outx)
         else:
             print('Not valid args')
