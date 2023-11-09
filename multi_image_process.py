@@ -39,24 +39,38 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         def set_input_directory_cmd(key:str,value:command_line_parser.CommandLineValue):
             if key == 'input_directory' and self.__input_directory is None:
                 self.__input_directory = value.string_value
+            else:
+                raise ValueError()
         def set_output_dir_cmd(key:str,value:command_line_parser.CommandLineValue):
             if key == 'output_dir' and self.__output_dir is None:
                 self.__output_dir = value.string_value
+            else:
+                raise ValueError()
         def set_colorhex_cmd(key:str,value:command_line_parser.CommandLineValue):
             if key == 'colorhex' and self.__colorhex is None:
                 self.__colorhex = value.string_value
+            else:
+                raise ValueError()
         def set_invert_cmd(key:str,value:command_line_parser.CommandLineValue):
             if key == 'invert' and self.__invert is None:
                 self.__invert = value.bool_value
+            else:
+                raise ValueError()
         def set_cell_invert_cmd(key:str,value:command_line_parser.CommandLineValue):
             if key == 'cell_invert' and self.__cell_invert is None:
                 self.__cell_invert = value.bool_value
+            else:
+                raise ValueError()                
         def set_multiprocessing_cmd(key:str,value:command_line_parser.CommandLineValue):
             if key == 'multiprocessing' and self.__multiprocessing is None:
                 self.__multiprocessing = value.bool_value
+            else:
+                raise ValueError()
         def set_reset_output_dir_cmd(key:str,value:command_line_parser.CommandLineValue):
             if key == 'reset_output_dir' and self.__reset_output_dir is None:
                 self.__reset_output_dir = value.bool_value
+            else:
+                raise ValueError()                
         self._populate_option('input_directory',command_line_parser.BaseHelpfulCommandLineOption('--input_directory The original folder containing an set of image files.',set_input_directory_cmd))
         self._populate_option('output_dir',command_line_parser.BaseHelpfulCommandLineOption('--output_dir The folder to place output files.',set_output_dir_cmd))
         self._populate_option('colorhex',command_line_parser.BaseHelpfulCommandLineOption('--colorHex The general color of output images.',set_colorhex_cmd))
