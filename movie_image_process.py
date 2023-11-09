@@ -4,6 +4,146 @@ import os
 import sys
 import pathlib
 import shutil
+import command_line_parser
+import traceback
+class MovieImageProcessCommandLineOptionsHydrator(command_line_parser.BaseHelpfulCommandLineHydrator):
+    def __init__(self) -> None:
+        super().__init__()
+    def _createOptions(self):
+        return MovieImageProcessCommandLineOptions()
+class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOptions):
+    def __init__(self) -> None:
+        super().__init__()
+        # main(ffmpeg_executable_path: str,movie_input_path: str,movie_output_path: str, output_movie_size: str=None, movie_frame_rate: float=None,color_hex: str=None,invert: bool=False,cell_invert: bool=False,use_audio=False):    
+        self.__ffmpeg_executable_path:str=None
+        self.__movie_input_path:str=None
+        self.__movie_output_path:str=None
+        self.__output_movie_size:str=None
+        self.__movie_frame_rate:float=None
+        self.__color_hex:str=None
+        self.__invert:bool=None
+        self.__cell_invert:bool=None
+        self.__use_audio:bool=None
+    def __fill_autos(self):
+        (self.__invert,self.__cell_invert,self.__use_audio) = (False,False,False)
+    def __sub_validate(self):
+        self.__fill_autos()
+        return self.__ffmpeg_executable_path is not None and \
+            self.__movie_input_path is not None and \
+                self.__movie_output_path is not None
+    def _populate_options(self):
+        def set_ffmpeg_executable_path_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'ffmpeg_executable_path' and self.__ffmpeg_executable_path is None:
+                self.__ffmpeg_executable_path=value.string_value
+            else:
+                raise ValueError()           
+        def set_movie_input_path_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'movie_input_path' and self.__movie_input_path is None:
+                self.__movie_input_path=value.string_value
+            else:
+                raise ValueError()                           
+        def set_movie_output_path_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'movie_output_path' and self.__movie_output_path is None:
+                self.__movie_output_path=value.string_value
+            else:
+                raise ValueError()
+        def set_output_movie_size_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'output_movie_size' and self.__output_movie_size is None:
+                self.__output_movie_size=value.string_value
+            else:
+                raise ValueError()
+        def set_movie_frame_rate_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'movie_frame_rate' and self.__movie_frame_rate is None:
+                self.__movie_frame_rate=value.float_value
+            else:
+                raise ValueError()
+        def set_color_hex_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'color_hex' and self.__color_hex is None:
+                self.__color_hex=value.string_value
+            else:
+                raise ValueError()
+        def set_invert_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'invert' and self.__invert is None:
+                self.__invert=value.bool_value
+            else:
+                raise ValueError()
+        def set_cell_invert_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'cell_invert' and self.__cell_invert is None:
+                self.__cell_invert=value.bool_value
+            else:
+                raise ValueError()
+        def set_use_audio_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'use_audio' and self.__use_audio is None:
+                self.__use_audio=value.bool_value
+            else:
+                raise ValueError()
+        self._populate_option('ffmpeg_executable_path',command_line_parser.BaseHelpfulCommandLineOption('--ffmpeg_executable_path Path to the ffmpeg executable (✅Required)',set_ffmpeg_executable_path_cmd))
+        self._populate_option('movie_input_path',command_line_parser.BaseHelpfulCommandLineOption('--movie_input_path Path to the input movie file (✅)(🦋Make sure the original video producer is okay with it first!) ',set_movie_input_path_cmd))
+        self._populate_option('movie_output_path',command_line_parser.BaseHelpfulCommandLineOption('--movie_output_path Path to the output movie file (✅)',set_movie_output_path_cmd))
+        self._populate_option('output_movie_size',command_line_parser.BaseHelpfulCommandLineOption('--output_movie_size Image size of the videos',set_output_movie_size_cmd))
+        self._populate_option('movie_frame_rate',command_line_parser.BaseHelpfulCommandLineOption('--movie_frame_rate Frame rate of the output video',set_movie_frame_rate_cmd))
+        self._populate_option('color_hex',command_line_parser.BaseHelpfulCommandLineOption('--color_hex General color of the movie',set_color_hex_cmd))
+        self._populate_option('invert',command_line_parser.BaseHelpfulCommandLineOption('--invert Invert the colors of the movie',set_invert_cmd))
+        self._populate_option('cell_invert',command_line_parser.BaseHelpfulCommandLineOption('--cell_invert Invert the colors of the cells of the movie',set_cell_invert_cmd))
+        self._populate_option('use_audio',command_line_parser.BaseHelpfulCommandLineOption('--use_audio Should I use the original audio. (🦋)',set_use_audio_cmd))
+    def validate(self) -> bool:
+        return super().validate() and self.__sub_validate()
+
+    @property
+    def ffmpeg_executable_path(self):
+        return self.__ffmpeg_executable_path
+    @ffmpeg_executable_path.setter
+    def ffmpeg_executable_path(self,ffmpeg_executable_path:str):
+        self.__ffmpeg_executable_path=ffmpeg_executable_path
+    @property
+    def movie_input_path(self):
+        return self.__movie_input_path
+    @movie_input_path.setter
+    def movie_input_path(self,movie_input_path:str):
+        self.__movie_input_path=movie_input_path
+    @property
+    def movie_output_path(self):
+        return self.__movie_output_path
+    @movie_output_path.setter
+    def movie_output_path(self,movie_output_path:str):
+        self.__movie_output_path=movie_output_path
+    @property
+    def output_movie_size(self):
+        self.__output_movie_size
+    @output_movie_size.setter
+    def output_movie_size(self,output_movie_size:str):
+        self.__output_movie_size=output_movie_size
+    @property 
+    def movie_frame_rate(self):
+        return self.__movie_frame_rate
+    @movie_frame_rate.setter
+    def movie_frame_rate(self,movie_frame_rate:float):
+        self.__movie_frame_rate=movie_frame_rate
+    @property
+    def color_hex(self):
+        return self.__color_hex
+    @color_hex.setter
+    def color_hex(self,color_hex:str):
+        self.__color_hex=color_hex
+    @property
+    def invert(self):
+        return self.__invert
+    @invert.setter
+    def invert(self,invert:bool):
+        self.__invert=invert
+    @property
+    def cell_invert(self):
+        return self.__cell_invert
+    @cell_invert.setter
+    def cell_invert(self,cell_invert:bool):
+        self.__cell_invert=cell_invert
+    @property
+    def use_audio(self):
+        return self.__use_audio
+    @use_audio.setter
+    def use_audio(self,use_audio:bool):
+        self.__use_audio=use_audio
+    
 class TempDirSet(object):
     def __init__(self) -> None:
         (self.__temp_dir,
@@ -62,22 +202,29 @@ def create_output_movie(ffmpeg_executable_path:str,movie_frame_rate:float,tds:Te
     preprocess=subprocess.Popen(args=args,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
     preprocess_code=preprocess.wait()
     return preprocess_code == 0
-def main(ffmpeg_executable_path: str,movie_input_path: str,movie_output_path: str, output_movie_size: str=None, movie_frame_rate: float=None,color_hex: str=None,invert: bool=False,cell_invert: bool=False,use_audio=False):    
-    tds = create_temp_dirs(movie_input_path=movie_input_path,use_audio=use_audio)
+def main(args:MovieImageProcessCommandLineOptions):    
+    tds = create_temp_dirs(movie_input_path=args.movie_input_path,use_audio=args.use_audio)
     
-    if use_audio:
-        success = extract_audio(ffmpeg_executable_path=ffmpeg_executable_path,movie_input_path=movie_input_path,tds=tds)
+    if args.use_audio:
+        success = extract_audio(ffmpeg_executable_path=args.ffmpeg_executable_path,movie_input_path=args.movie_input_path,tds=tds)
     else:
         success = True
     if not success:
         sys.stderr.write(f'Failed in audio extraction\n')
         return 1
-    success = split_to_frames(ffmpeg_executable_path=ffmpeg_executable_path,movie_input_path=movie_input_path,output_movie_size=output_movie_size,movie_frame_rate=movie_frame_rate,tds=tds)
+    success = split_to_frames(ffmpeg_executable_path=args.ffmpeg_executable_path,movie_input_path=args.movie_input_path,output_movie_size=args.output_movie_size,movie_frame_rate=args.movie_frame_rate,tds=tds)
     if not success:
         sys.stderr.write(f'Failed in movie preprocessing\n')
         return 1    
-    multi_image_process.main(input_directory=tds.frame_split_dir,output_dir=tds.image_processing_dir,colorhex=color_hex,invert=invert,cell_invert=cell_invert,multiprocessing=True)
-    success = create_output_movie(ffmpeg_executable_path=ffmpeg_executable_path,movie_frame_rate=movie_frame_rate,tds=tds,use_audio=use_audio,movie_output_path=movie_output_path)
+    iargs=multi_image_process.MultiImageCommandLineOptions()
+    iargs.input_directory=tds.frame_split_dir
+    iargs.output_dir=tds.image_processing_dir
+    iargs.colorhex=args.color_hex
+    iargs.invert=args.invert
+    iargs.cell_invert=args.cell_invert
+    iargs.multiprocessing=True
+    multi_image_process.main(args=iargs)
+    success = create_output_movie(ffmpeg_executable_path=args.ffmpeg_executable_path,movie_frame_rate=args.movie_frame_rate,tds=tds,use_audio=args.use_audio,movie_output_path=args.movie_output_path)
     if not success:
         sys.stderr.write(f'Failed in final movie export\n')
         return 1
@@ -86,18 +233,18 @@ def main(ffmpeg_executable_path: str,movie_input_path: str,movie_output_path: st
     
 
 if __name__=="__main__":
-    argv_process=[f if len(f) > 0 else None for f in sys.argv]
-    if len(argv_process) == 4:
-        return_code = main(ffmpeg_executable_path=argv_process[1],movie_input_path=argv_process[2],movie_output_path=argv_process[3])
-    elif len(argv_process) == 5:    
-        return_code = main(ffmpeg_executable_path=argv_process[1],movie_input_path=argv_process[2],movie_output_path=argv_process[3],output_movie_size=argv_process[4])
-    elif len(argv_process) == 6:
-        return_code = main(ffmpeg_executable_path=argv_process[1],movie_input_path=argv_process[2],movie_output_path=argv_process[3],output_movie_size=argv_process[4],movie_frame_rate=float(argv_process[5]) if argv_process[5] is not None else None)
-    elif len(argv_process) == 7:
-        return_code = main(ffmpeg_executable_path=argv_process[1],movie_input_path=argv_process[2],movie_output_path=argv_process[3],output_movie_size=argv_process[4],movie_frame_rate=float(argv_process[5]) if argv_process[5] is not None else None,color_hex=argv_process[6])
-    elif len(argv_process) == 8:
-        return_code = main(ffmpeg_executable_path=argv_process[1],movie_input_path=argv_process[2],movie_output_path=argv_process[3],output_movie_size=argv_process[4],movie_frame_rate=float(argv_process[5]) if argv_process[5] is not None else None,color_hex=argv_process[6],invert=argv_process[7].lower() in ['y','t','yes','true','1'] if argv_process[7] is not None else None)
-    elif len(argv_process) == 9:
-        return_code = main(ffmpeg_executable_path=argv_process[1],movie_input_path=argv_process[2],movie_output_path=argv_process[3],output_movie_size=argv_process[4],movie_frame_rate=float(argv_process[5]) if argv_process[5] is not None else None,color_hex=argv_process[6],invert=argv_process[7].lower() in ['y','t','yes','true','1'] if argv_process[7] is not None else None,cell_invert=argv_process[8].lower() in ['y','t','yes','true','1'] if argv_process[8] is not None else None)
-    elif len(argv_process) == 10:
-        return_code = main(ffmpeg_executable_path=argv_process[1],movie_input_path=argv_process[2],movie_output_path=argv_process[3],output_movie_size=argv_process[4],movie_frame_rate=float(argv_process[5]) if argv_process[5] is not None else None,color_hex=argv_process[6],invert=argv_process[7].lower() in ['y','t','yes','true','1'] if argv_process[7] is not None else None,cell_invert=argv_process[8].lower() in ['y','t','yes','true','1'] if argv_process[8] is not None else None,use_audio=argv_process[9].lower() in ['y','t','yes','true','1'] if argv_process[9] is not None else None)
+    cp=command_line_parser.CommandLineParser()
+    if cp.validate(sys.argv):                
+        cp.parse_args(sys.argv)    
+        bclh = MovieImageProcessCommandLineOptionsHydrator()
+        out:list[MovieImageProcessCommandLineOptions]=[]
+        ex_out:list[Exception]=[]
+        if bclh.hydrate_and_validate(cp,out,ex_out):
+            outx=out[0]            
+            if outx.validate() and not outx.help:                
+                main(args=outx)
+        else:
+            print('Not valid args')
+            traceback.print_exception(ex_out[0])
+    else:
+        print('Not valid args')
