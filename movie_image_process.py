@@ -24,8 +24,12 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self.__invert:bool=None
         self.__cell_invert:bool=None
         self.__use_audio:bool=None
+        self.__overwrite_video:bool=None
     def __fill_autos(self):
-        (self.__invert,self.__cell_invert,self.__use_audio) = (False,False,False)
+        self.__invert = False if self.__invert is None else self.__invert
+        self.__cell_invert = False if self.__cell_invert is None else self.__cell_invert
+        self.__use_audio = False if self.__use_audio is None else self.__use_audio
+        self.__overwrite_video = False if self.__overwrite_video is None else self.__overwrite_video        
     def __sub_validate(self):
         self.__fill_autos()
         return self.__ffmpeg_executable_path is not None and \
@@ -77,6 +81,11 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
                 self.__use_audio=value.bool_value
             else:
                 raise ValueError()
+        def set_overwrite_video_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'overwrite_video' and self.__overwrite_video is None:
+                self.__overwrite_video=value.bool_value
+            else:
+                raise ValueError()
         self._populate_option('ffmpeg_executable_path',command_line_parser.BaseHelpfulCommandLineOption('--ffmpeg_executable_path Path to the ffmpeg executable (✅Required)',set_ffmpeg_executable_path_cmd))
         self._populate_option('movie_input_path',command_line_parser.BaseHelpfulCommandLineOption('--movie_input_path Path to the input movie file (✅)(🦋Make sure the original video producer is okay with it first!) ',set_movie_input_path_cmd))
         self._populate_option('movie_output_path',command_line_parser.BaseHelpfulCommandLineOption('--movie_output_path Path to the output movie file (✅)',set_movie_output_path_cmd))
@@ -85,7 +94,8 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self._populate_option('color_hex',command_line_parser.BaseHelpfulCommandLineOption('--color_hex General color of the movie',set_color_hex_cmd))
         self._populate_option('invert',command_line_parser.BaseHelpfulCommandLineOption('--invert Invert the colors of the movie',set_invert_cmd))
         self._populate_option('cell_invert',command_line_parser.BaseHelpfulCommandLineOption('--cell_invert Invert the colors of the cells of the movie',set_cell_invert_cmd))
-        self._populate_option('use_audio',command_line_parser.BaseHelpfulCommandLineOption('--use_audio Should I use the original audio. (🦋)',set_use_audio_cmd))
+        self._populate_option('use_audio',command_line_parser.BaseHelpfulCommandLineOption('--use_audio  Use the original audio. (🦋)',set_use_audio_cmd))
+        self._populate_option('overwrite_video',command_line_parser.BaseHelpfulCommandLineOption('--overwrite_video Overwrite the original video.',set_overwrite_video_cmd))
     def validate(self) -> bool:
         return super().validate() and self.__sub_validate()
 
@@ -109,7 +119,7 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self.__movie_output_path=movie_output_path
     @property
     def output_movie_size(self):
-        self.__output_movie_size
+        return self.__output_movie_size
     @output_movie_size.setter
     def output_movie_size(self,output_movie_size:str):
         self.__output_movie_size=output_movie_size
@@ -143,6 +153,12 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
     @use_audio.setter
     def use_audio(self,use_audio:bool):
         self.__use_audio=use_audio
+    @property
+    def overwrite_video(self):
+        return self.__overwrite_video
+    @overwrite_video.setter
+    def overwrite_video(self,overwrite_video:bool):
+        self.__overwrite_video = overwrite_video
     
 class TempDirSet(object):
     def __init__(self) -> None:
@@ -181,6 +197,7 @@ def create_temp_dirs(movie_input_path:str,use_audio:bool):
     (out.frame_split_dir,out.image_processing_dir,out.audio_output_dir) = \
     (temp_dir,temp_dir_out,temp_dir_audio)
     return out
+    
 def delete_temp_dirs(tds:TempDirSet):
     paths = (pathlib.Path(f) for f in [tds.audio_output_dir,tds.frame_split_dir,tds.image_processing_dir])
     paths = ([f] if f.exists() else [] for f in paths)
@@ -197,14 +214,13 @@ def extract_audio(ffmpeg_executable_path:str,movie_input_path:str,tds:TempDirSet
     preprocess=subprocess.Popen(args=args,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
     preprocess_code=preprocess.wait()
     return preprocess_code == 0   
-def create_output_movie(ffmpeg_executable_path:str,movie_frame_rate:float,tds:TempDirSet,use_audio:bool,movie_output_path:str):
-    args=[g for f in [[ffmpeg_executable_path,'-i',f'{tds.image_processing_dir}/frame_%09d.png'],['-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=44100'] if not use_audio else ['-i',f'{tds.audio_output_dir}/audio_extract.mka'],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else [],['-c:v','libx264','-crf','17','-preset','veryslow','-c:a','aac','-ab','192k','-ar','44100','-ac','2','-pix_fmt','yuv420p','-f','mp4','-shortest',movie_output_path]] for g in f]
+def create_output_movie(ffmpeg_executable_path:str,movie_frame_rate:float,tds:TempDirSet,use_audio:bool,movie_output_path:str,overwrite:bool):
+    args=[g for f in [[ffmpeg_executable_path,'-i',f'{tds.image_processing_dir}/frame_%09d.png'],['-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=44100'] if not use_audio else ['-i',f'{tds.audio_output_dir}/audio_extract.mka'],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else [],['-y'] if overwrite else [],['-c:v','libx264','-crf','17','-preset','veryslow','-c:a','aac','-ab','192k','-ar','44100','-ac','2','-pix_fmt','yuv420p','-f','mp4','-shortest',movie_output_path]] for g in f]
     preprocess=subprocess.Popen(args=args,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
     preprocess_code=preprocess.wait()
     return preprocess_code == 0
 def main(args:MovieImageProcessCommandLineOptions):    
-    tds = create_temp_dirs(movie_input_path=args.movie_input_path,use_audio=args.use_audio)
-    
+    tds = create_temp_dirs(movie_input_path=args.movie_input_path,use_audio=args.use_audio)    
     if args.use_audio:
         success = extract_audio(ffmpeg_executable_path=args.ffmpeg_executable_path,movie_input_path=args.movie_input_path,tds=tds)
     else:
@@ -221,10 +237,10 @@ def main(args:MovieImageProcessCommandLineOptions):
     iargs.output_dir=tds.image_processing_dir
     iargs.colorhex=args.color_hex
     iargs.invert=args.invert
-    iargs.cell_invert=args.cell_invert
+    iargs.cell_invert=args.cell_invert    
     iargs.multiprocessing=True
     multi_image_process.main(args=iargs)
-    success = create_output_movie(ffmpeg_executable_path=args.ffmpeg_executable_path,movie_frame_rate=args.movie_frame_rate,tds=tds,use_audio=args.use_audio,movie_output_path=args.movie_output_path)
+    success = create_output_movie(ffmpeg_executable_path=args.ffmpeg_executable_path,movie_frame_rate=args.movie_frame_rate,tds=tds,use_audio=args.use_audio,movie_output_path=args.movie_output_path,overwrite=args.overwrite_video)
     if not success:
         sys.stderr.write(f'Failed in final movie export\n')
         return 1

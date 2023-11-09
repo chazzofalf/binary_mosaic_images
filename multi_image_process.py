@@ -6,6 +6,7 @@ import subprocess
 import time
 import command_line_parser
 import traceback
+import shutil
 from command_line_parser import CommandLineValue
 
 bconvert=CommandLineValue.bool_as_string
@@ -25,7 +26,10 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__multiprocessing:bool=None
         self.__reset_output_dir:bool=None
     def __fill_autos(self):
-        (self.__invert,self.__cell_invert,self.__multiprocessing,self.__reset_output_dir) = (False,False,False,False)
+        self.__invert = False if self.__invert is None else self.__invert
+        self.__cell_invert = False if self.__cell_invert is None else self.__cell_invert
+        self.__multiprocessing = False if self.__multiprocessing is None else self.__multiprocessing
+        self.__reset_output_dir = False if self.__reset_output_dir is None else self.__reset_output_dir        
     def __sub_validate(self) -> bool:
         self.__fill_autos()
         return self.__input_directory is not None \
@@ -159,7 +163,7 @@ def main(args:MultiImageCommandLineOptions):
             if entity.is_symlink() or entity.is_file():
                 os.remove(str(entity.resolve()))
             elif entity.is_dir():
-                os.removedirs(str(entity.resolve()))
+                shutil.rmtree(str(entity.resolve()))                
     else:
         for entity in opath.iterdir():
             raise Exception('Safety: Non Empty Directory while not specifying reset_output_directory.')

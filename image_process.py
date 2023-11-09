@@ -20,7 +20,8 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self.__invert:bool=None
         self.__cell_invert:bool=None
     def __fill_autos(self):
-        (self.__invert,self.__cell_invert) = (False,False)
+        self.__invert = False if self.__invert is None else self.__invert
+        self.__cell_invert = False if self.__cell_invert else self.__cell_invert        
     def __sub_validate(self):
         self.__fill_autos()
         return self.img_name is not None and \
