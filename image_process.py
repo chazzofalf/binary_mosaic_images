@@ -184,7 +184,10 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         return None
     @output_size.setter
     def output_size(self,output_size:str):
-        (self.output_width,self.output_height) = tuple((int(f) for f in self.__size_for_name(output_size).split('x')))
+        if output_size is not None:
+            (self.output_width,self.output_height) = tuple((int(f) for f in self.__size_for_name(output_size).split('x')))
+        else:
+            (self.output_size,self.output_height) = (None,None)
     
     
     

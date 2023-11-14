@@ -27,6 +27,9 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__cell_invert:bool=None
         self.__multiprocessing:bool=None
         self.__reset_output_dir:bool=None
+        self.__output_width:int=None
+        self.__output_height:int=None
+        self.__output_size:str=None
         
     def __fill_autos(self):
         self.__invert = False if self.__invert is None else self.__invert
@@ -37,7 +40,8 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
     def __sub_validate(self) -> bool:
         self.__fill_autos()
         return self.__input_directory is not None \
-            and self.__output_dir is not None
+            and self.__output_dir is not None  \
+                and ((self.__output_size is None and ((self.__output_width is None) == (self.__output_height is None))) or (self.__output_width is not None and self.__output_width is None and self.__output_height is None))
     
     def validate(self) -> bool:
         return super().validate() \
@@ -86,6 +90,21 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
                 self.__reset_output_dir = value.bool_value
             else:
                 raise ValueError()    
+        def set_output_width_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'output_width' and self.__output_width is None:
+                self.__output_width = value.int_value
+            else:
+                raise ValueError()
+        def set_output_height_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'output_height' and self.__output_height is None:
+                self.__output_height = value.int_value
+            else:
+                raise ValueError()
+        def set_output_size_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'output_size' and self.__output_size is None and self.__output_height is None and self.__output_width is None:
+                self.__output_size = value.string_value
+            else:
+                raise ValueError()
                         
         self._populate_option('input_directory',command_line_parser.BaseHelpfulCommandLineOption('--input_directory The original folder containing an set of image files.',set_input_directory_cmd))
         self._populate_option('output_dir',command_line_parser.BaseHelpfulCommandLineOption('--output_dir The folder to place output files.',set_output_dir_cmd))
@@ -94,6 +113,9 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self._populate_option('cell_invert',command_line_parser.BaseHelpfulCommandLineOption('--cell_invert Invert the colors of the cells in the images',set_cell_invert_cmd))
         self._populate_option('multiprocessing',command_line_parser.BaseHelpfulCommandLineOption('--multiprocessing Process multiple images at once',set_multiprocessing_cmd))
         self._populate_option('reset_output_dir',command_line_parser.BaseHelpfulCommandLineOption('--reset_output_dir Delete the output folder. Confirms overwriting.',set_reset_output_dir_cmd))
+        self._populate_option('output_width',command_line_parser.BaseHelpfulCommandLineOption('--output_width Sets the output width.',set_output_width_cmd))
+        self._populate_option('output_height',command_line_parser.BaseHelpfulCommandLineOption('--output_height Sets the output height.',set_output_height_cmd))
+        self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption('--output_size Sets the output size (WxH or FFMPEG-compatible abbreviation).',set_output_size_cmd))
         
     @property 
     def reset_output_dir(self):
@@ -150,22 +172,43 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
     @multiprocessing.setter
     def multiprocessing(self,multiprocessing:bool):
         self.__multiprocessing=multiprocessing
+    
+    @property
+    def output_width(self):
+        return self.__output_width
+    @output_width.setter
+    def output_width(self,output_width:int):
+        self.__output_width=output_width
+    @property
+    def output_height(self):
+        return self.__output_height
+    @output_height.setter
+    def output_height(self,output_height:int):
+        self.__output_height=output_height
+    @property
+    def output_size(self) -> str:
+        if self.__output_width is not None and self.__output_height is None:
+            return self.__name_for_size(f'{self.output_width}x{self.output_height}')
+        return None
+    @output_size.setter
+    def output_size(self,output_size:str):
+        self.__output_size=output_size        
 
-def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,ppool:list[list[subprocess.Popen]]):
+def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,ppool:list[list[subprocess.Popen]]):
     found=False    
     while not found:
         idx=0
         for pref in ppool:
             if pref[0] is None or pref[0].poll() is not None:
-                subprocess_do(img_name=img_name,img_out_name=img_out_name,colorhex=colorhex,invert=invert,cell_invert=cell_invert,pref=pref)
+                subprocess_do(img_name=img_name,img_out_name=img_out_name,colorhex=colorhex,invert=invert,cell_invert=cell_invert,output_height=output_height,output_width=output_width,output_size=output_size,pref=pref)
                 found=True
                 break
             else:
                 idx += 1
         time.sleep(0.1)
         
-def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,pref:list[subprocess.Popen]):            
-    args=[g for f in [[sys.executable,'image_process.py','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert']] for g in f]    
+def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,pref:list[subprocess.Popen]):            
+    args=[g for f in [[sys.executable,'image_process.py','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
     pref[0]=subprocess.Popen(args=args)
 def drain(ppool:list[list[subprocess.Popen]]):
     found=True
@@ -204,9 +247,12 @@ def main(args:MultiImageCommandLineOptions):
             iargs.colorhex=args.colorhex
             iargs.invert=args.invert
             iargs.cell_invert=args.cell_invert
+            iargs.output_size=args.output_size
+            iargs.output_height=args.output_height
+            iargs.output_width=args.output_width
             image_process.main(args=iargs)
         else:
-            subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,ppool=ppool)
+            subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,output_height=args.output_height,output_width=args.output_width,output_size=args.output_size,ppool=ppool)
     if args.multiprocessing:
         drain(ppool=ppool)
 
