@@ -24,6 +24,9 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self.__cell_invert:bool=None
         self.__use_audio:bool=None
         self.__overwrite_video:bool=None
+        self.__output_width:int=None
+        self.__output_height:int=None
+        self.__output_size:str=None
         
     def __fill_autos(self):
         self.__invert = False if self.__invert is None else self.__invert
@@ -35,7 +38,11 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self.__fill_autos()
         return self.__ffmpeg_executable_path is not None and \
             self.__movie_input_path is not None and \
-                self.__movie_output_path is not None
+                self.__movie_output_path is not None and \
+                    (( self.__output_size is None and self.__output_height is None and self.__output_width is None) or \
+                    (self.__output_size is None and self.__output_height is not None and self.__output_width is not None) or \
+                    (self.__output_size is not None and self.__output_height is None and self.__output_width is None)
+                     )
                 
     def _populate_options(self):
         def set_ffmpeg_executable_path_cmd(key:str,value:command_line_parser.CommandLineValue):
@@ -97,17 +104,35 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
                 self.__overwrite_video=value.bool_value
             else:
                 raise ValueError()
+        def set_output_width_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'output_width' and self.__output_width is None and self.__output_size is None:
+                self.__output_width = value.int_value
+            else:
+                raise ValueError()
+        def set_output_height_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'output_height' and self.__output_height is None and self.__output_size is None:
+                self.__output_height = value.int_value
+            else:
+                raise ValueError()
+        def set_output_size_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key in ['output_size','output_movie_size'] and self.__output_size is None and self.__output_height is None and self.__output_width is None:
+                self.__output_size = value.string_value
+            else:
+                raise ValueError()
             
         self._populate_option('ffmpeg_executable_path',command_line_parser.BaseHelpfulCommandLineOption('--ffmpeg_executable_path Path to the ffmpeg executable (✅Required)',set_ffmpeg_executable_path_cmd))
         self._populate_option('movie_input_path',command_line_parser.BaseHelpfulCommandLineOption('--movie_input_path Path to the input movie file (✅)(🦋Make sure the original video producer is okay with it first!) ',set_movie_input_path_cmd))
         self._populate_option('movie_output_path',command_line_parser.BaseHelpfulCommandLineOption('--movie_output_path Path to the output movie file (✅)',set_movie_output_path_cmd))
-        self._populate_option('output_movie_size',command_line_parser.BaseHelpfulCommandLineOption('--output_movie_size Image size of the videos',set_output_movie_size_cmd))
+        self._populate_option('output_movie_size',command_line_parser.BaseHelpfulCommandLineOption('--output_movie_size Image size of the videos',set_output_size_cmd))
         self._populate_option('movie_frame_rate',command_line_parser.BaseHelpfulCommandLineOption('--movie_frame_rate Frame rate of the output video',set_movie_frame_rate_cmd))
         self._populate_option('color_hex',command_line_parser.BaseHelpfulCommandLineOption('--color_hex General color of the movie',set_color_hex_cmd))
         self._populate_option('invert',command_line_parser.BaseHelpfulCommandLineOption('--invert Invert the colors of the movie',set_invert_cmd))
         self._populate_option('cell_invert',command_line_parser.BaseHelpfulCommandLineOption('--cell_invert Invert the colors of the cells of the movie',set_cell_invert_cmd))
         self._populate_option('use_audio',command_line_parser.BaseHelpfulCommandLineOption('--use_audio  Use the original audio. (🦋)',set_use_audio_cmd))
         self._populate_option('overwrite_video',command_line_parser.BaseHelpfulCommandLineOption('--overwrite_video Overwrite the original video.',set_overwrite_video_cmd))
+        self._populate_option('output_width',command_line_parser.BaseHelpfulCommandLineOption('--output_width Sets the output width.',set_output_width_cmd))
+        self._populate_option('output_height',command_line_parser.BaseHelpfulCommandLineOption('--output_height Sets the output height.',set_output_height_cmd))
+        self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption('--output_size Sets the output size (WxH or FFMPEG-compatible abbreviation).',set_output_size_cmd))
         
     def validate(self) -> bool:
         return super().validate() and self.__sub_validate()
@@ -142,7 +167,7 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
     
     @output_movie_size.setter
     def output_movie_size(self,output_movie_size:str):
-        self.__output_movie_size=output_movie_size
+        self.output_size=output_movie_size
         
     @property 
     def movie_frame_rate(self):
@@ -191,6 +216,25 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
     @overwrite_video.setter
     def overwrite_video(self,overwrite_video:bool):
         self.__overwrite_video = overwrite_video
+        
+    @property
+    def output_width(self):
+        return self.__output_width
+    @output_width.setter
+    def output_width(self,output_width:int):
+        self.__output_width=output_width
+    @property
+    def output_height(self):
+        return self.__output_height
+    @output_height.setter
+    def output_height(self,output_height:int):
+        self.__output_height=output_height
+    @property
+    def output_size(self) -> str:
+        return self.__output_size
+    @output_size.setter
+    def output_size(self,output_size:str):        
+        self.__output_size=output_size
     
 class TempDirSet(object):
     def __init__(self) -> None:
@@ -243,7 +287,7 @@ def delete_temp_dirs(tds:TempDirSet):
         shutil.rmtree(str(f))
         
 def split_to_frames(ffmpeg_executable_path:str,movie_input_path:str,output_movie_size:str,movie_frame_rate:float,tds:TempDirSet):
-    args=[g for f in [[ffmpeg_executable_path,'-i',movie_input_path],['-s',output_movie_size] if output_movie_size is not None else [],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else[],['-c:v','png','-f','image2',f'{tds.frame_split_dir}/frame_%09d.png']] for g in f]
+    args=[g for f in [[ffmpeg_executable_path,'-i',movie_input_path],['-r',str(movie_frame_rate)] if movie_frame_rate is not None else[],['-c:v','png','-f','image2',f'{tds.frame_split_dir}/frame_%09d.png']] for g in f]
     preprocess=subprocess.Popen(args=args,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
     preprocess_code=preprocess.wait()
     return preprocess_code == 0
@@ -280,6 +324,12 @@ def main(args:MovieImageProcessCommandLineOptions):
     iargs.invert=args.invert
     iargs.cell_invert=args.cell_invert    
     iargs.multiprocessing=True
+    if args.output_size is not None:
+        iargs.output_size=args.output_size
+    elif args.output_height is not None and args.output_width is not None:
+        iargs.output_height=args.output_height
+        iargs.output_width=args.output_width
+    
     multi_image_process.main(args=iargs)
     success = create_output_movie(ffmpeg_executable_path=args.ffmpeg_executable_path,movie_frame_rate=args.movie_frame_rate,tds=tds,use_audio=args.use_audio,movie_output_path=args.movie_output_path,overwrite=args.overwrite_video)
     if not success:
