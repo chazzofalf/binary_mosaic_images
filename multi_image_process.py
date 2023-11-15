@@ -41,7 +41,10 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__fill_autos()
         return self.__input_directory is not None \
             and self.__output_dir is not None  \
-                and ((self.__output_size is None and ((self.__output_width is None) == (self.__output_height is None))) or (self.__output_width is not None and self.__output_width is None and self.__output_height is None))
+                and (( self.__output_size is None and self.__output_height is None and self.__output_width is None) or \
+                    (self.__output_size is None and self.__output_height is not None and self.__output_width is not None) or \
+                    (self.__output_size is not None and self.__output_height is None and self.__output_width is None)
+                     )
     
     def validate(self) -> bool:
         return super().validate() \
@@ -91,12 +94,12 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
             else:
                 raise ValueError()    
         def set_output_width_cmd(key:str,value:command_line_parser.CommandLineValue):
-            if key == 'output_width' and self.__output_width is None:
+            if key == 'output_width' and self.__output_width is None and self.__output_size is None:
                 self.__output_width = value.int_value
             else:
                 raise ValueError()
         def set_output_height_cmd(key:str,value:command_line_parser.CommandLineValue):
-            if key == 'output_height' and self.__output_height is None:
+            if key == 'output_height' and self.__output_height is None and self.__output_size is None:
                 self.__output_height = value.int_value
             else:
                 raise ValueError()
@@ -187,11 +190,9 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__output_height=output_height
     @property
     def output_size(self) -> str:
-        if self.__output_width is not None and self.__output_height is None:
-            return self.__name_for_size(f'{self.output_width}x{self.output_height}')
-        return None
+        return self.__output_size
     @output_size.setter
-    def output_size(self,output_size:str):
+    def output_size(self,output_size:str):        
         self.__output_size=output_size        
 
 def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,ppool:list[list[subprocess.Popen]]):
@@ -237,21 +238,25 @@ def main(args:MultiImageCommandLineOptions):
     ppool=[]
     for _ in range(0,os.cpu_count()**2):
         ppool.append([None])
-    for input_entity in ipath.iterdir():
+    for input_entity in (pathlib.Path(g) for g in sorted((str(f) for f in ipath.iterdir()))):
         name=str(input_entity.relative_to(args.input_directory))        
         output=opath.joinpath(name)
+        
         if not args.multiprocessing:     
             iargs=image_process.ImageProcessCommandLineArgs()
             iargs.img_name=str(input_entity)
             iargs.img_out_name=str(output)
             iargs.colorhex=args.colorhex
             iargs.invert=args.invert
-            iargs.cell_invert=args.cell_invert
-            iargs.output_size=args.output_size
-            iargs.output_height=args.output_height
-            iargs.output_width=args.output_width
+            iargs.cell_invert=args.cell_invert            
+            if args.output_size is not None:
+                iargs.output_size=args.output_size
+            elif args.output_height is not None and args.output_width is not None:
+                iargs.output_height=args.output_height
+                iargs.output_width=args.output_width
             image_process.main(args=iargs)
         else:
+            
             subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,output_height=args.output_height,output_width=args.output_width,output_size=args.output_size,ppool=ppool)
     if args.multiprocessing:
         drain(ppool=ppool)
@@ -265,8 +270,12 @@ if __name__=='__main__':
         ex_out:list[Exception]=[]
         if bclh.hydrate_and_validate(cp,out,ex_out):
             outx=out[0]            
-            if outx.validate() and not outx.help:                
+            ival=outx.validate()
+            if ival and not outx.help:                
                 main(args=outx)
+            elif not ival:
+                print('Not valid args')
+            
         else:
             print('Not valid args')
             traceback.print_exception(ex_out[0])

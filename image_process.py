@@ -185,9 +185,9 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
     @output_size.setter
     def output_size(self,output_size:str):
         if output_size is not None:
-            (self.output_width,self.output_height) = tuple((int(f) for f in self.__size_for_name(output_size).split('x')))
+            (self.__output_width,self.__output_height) = tuple((int(f) for f in self.__size_for_name(output_size).split('x')))
         else:
-            (self.output_size,self.output_height) = (None,None)
+            (self.__output_width,self.__output_height) = (None,None)
     
     
     
@@ -333,10 +333,10 @@ def main(args:ImageProcessCommandLineArgs):
         (omx,omy) = (ow//2,oh//2)
         (obwh,obhh) = (obw//2,obh//2)
         (obx,oby) = (omx-obwh,omy-obhh)
-        (obx2,oby2) = (omx+obwh,omy+obhh)
+        (obx2,oby2) = (obx+obw,oby+obh)
         rect = (obx,oby,obx2,oby2)
         bimg=img.resize((obw,obh))
-        img=PIL.Image.new('RGB',(ow,oh))        
+        img=PIL.Image.new('RGB',(ow,oh))
         img.paste(bimg,rect)            
     img=img.convert(mode='L')
     bit_palette=[bitblock(bytex=f) for f in range(0,256)]
