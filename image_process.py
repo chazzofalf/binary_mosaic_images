@@ -325,18 +325,14 @@ def main(args:ImageProcessCommandLineArgs):
     img=PIL.Image.open(args.img_name)
     img=img.convert('RGB')
     if args.output_height is not None and args.output_width is not None:
-        (ow,oh)=(args.output_width,args.output_height)
-        (or_w,or_h)=(ow/img.width,oh/img.height)
-        sbw = or_w < or_h
-        cr = or_w if sbw else or_h
-        (obw,obh) = (math.floor(img.width*cr),math.floor(img.height*cr))
-        (omx,omy) = (ow//2,oh//2)
-        (obwh,obhh) = (obw//2,obh//2)
-        (obx,oby) = (omx-obwh,omy-obhh)
-        (obx2,oby2) = (obx+obw,oby+obh)
-        rect = (obx,oby,obx2,oby2)
-        bimg=img.resize((obw,obh))
-        img=PIL.Image.new('RGB',(ow,oh))
+        (w_i,h_i,w_s,h_s) = (img.width,img.height,args.output_width,args.output_height)
+        (r_i,r_s) = (w_i/h_i,w_s/h_s)
+        (w_o,h_o) = (w_i * (h_s/h_i),h_s) if r_s > r_i else (w_s,h_i * (w_s/w_i))
+        (x_c,y_c) = (w_s/2,h_s/2)
+        (x_s,y_s) = (0 if w_o == w_s else x_c-(w_o/2),0 if h_o == h_s else y_c-(h_o/2))
+        rect = tuple((math.floor(f) for f in (x_s,y_s,x_s+w_o,y_s+h_o)))
+        bimg=img.resize((math.floor(w_o),math.floor(h_o)))
+        img=PIL.Image.new('RGB',(w_s,h_s))
         img.paste(bimg,rect)            
     img=img.convert(mode='L')
     bit_palette=[bitblock(bytex=f) for f in range(0,256)]
