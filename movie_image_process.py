@@ -27,12 +27,15 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self.__output_width:int=None
         self.__output_height:int=None
         self.__output_size:str=None
+        self.__rainbow:bool=None
+        
         
     def __fill_autos(self):
         self.__invert = False if self.__invert is None else self.__invert
         self.__cell_invert = False if self.__cell_invert is None else self.__cell_invert
         self.__use_audio = False if self.__use_audio is None else self.__use_audio
         self.__overwrite_video = False if self.__overwrite_video is None else self.__overwrite_video   
+        self.__rainbow = False if self.__rainbow is None else self.__rainbow
              
     def __sub_validate(self):
         self.__fill_autos()
@@ -42,7 +45,12 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
                     (( self.__output_size is None and self.__output_height is None and self.__output_width is None) or \
                     (self.__output_size is None and self.__output_height is not None and self.__output_width is not None) or \
                     (self.__output_size is not None and self.__output_height is None and self.__output_width is None)
-                     )
+                     ) and \
+                        (
+                            (self.__color_hex is None and not self.__rainbow) or \
+                                (self.__color_hex is not None and not self.__rainbow) or \
+                                    (self.__color_hex is None and self.__rainbow)
+                        )
                 
     def _populate_options(self):
         def set_ffmpeg_executable_path_cmd(key:str,value:command_line_parser.CommandLineValue):
@@ -119,6 +127,11 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
                 self.__output_size = value.string_value
             else:
                 raise ValueError()
+        def set_rainbow_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'rainbow' and self.__rainbow is None:
+                self.__rainbow = value.bool_value
+            else:
+                raise ValueError()
             
         self._populate_option('ffmpeg_executable_path',command_line_parser.BaseHelpfulCommandLineOption('--ffmpeg_executable_path Path to the ffmpeg executable (✅Required)',set_ffmpeg_executable_path_cmd))
         self._populate_option('movie_input_path',command_line_parser.BaseHelpfulCommandLineOption('--movie_input_path Path to the input movie file (✅)(🦋Make sure the original video producer is okay with it first!) ',set_movie_input_path_cmd))
@@ -133,6 +146,7 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self._populate_option('output_width',command_line_parser.BaseHelpfulCommandLineOption('--output_width Sets the output width.',set_output_width_cmd))
         self._populate_option('output_height',command_line_parser.BaseHelpfulCommandLineOption('--output_height Sets the output height.',set_output_height_cmd))
         self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption('--output_size Sets the output size (WxH or FFMPEG-compatible abbreviation).',set_output_size_cmd))
+        self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_cmd))
         
     def validate(self) -> bool:
         return super().validate() and self.__sub_validate()
@@ -235,6 +249,12 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
     @output_size.setter
     def output_size(self,output_size:str):        
         self.__output_size=output_size
+    @property
+    def rainbow(self):
+        return self.__rainbow
+    @rainbow.setter
+    def rainbow(self,rainbow:bool):
+        self.__rainbow=rainbow  
     
 class TempDirSet(object):
     def __init__(self) -> None:
@@ -322,7 +342,8 @@ def main(args:MovieImageProcessCommandLineOptions):
     iargs.output_dir=tds.image_processing_dir
     iargs.colorhex=args.color_hex
     iargs.invert=args.invert
-    iargs.cell_invert=args.cell_invert    
+    iargs.cell_invert=args.cell_invert  
+    iargs.rainbow=args.rainbow  
     iargs.multiprocessing=True
     if args.output_size is not None:
         iargs.output_size=args.output_size

@@ -214,21 +214,21 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
     def rainbow(self,rainbow:bool):
         self.__rainbow=rainbow     
 
-def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,ppool:list[list[subprocess.Popen]]):
+def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,ppool:list[list[subprocess.Popen]]):
     found=False    
     while not found:
         idx=0
         for pref in ppool:
             if pref[0] is None or pref[0].poll() is not None:
-                subprocess_do(img_name=img_name,img_out_name=img_out_name,colorhex=colorhex,invert=invert,cell_invert=cell_invert,output_height=output_height,output_width=output_width,output_size=output_size,pref=pref)
+                subprocess_do(img_name=img_name,img_out_name=img_out_name,colorhex=colorhex,invert=invert,cell_invert=cell_invert,output_height=output_height,output_width=output_width,output_size=output_size,rainbow=rainbow,pref=pref)
                 found=True
                 break
             else:
                 idx += 1
         time.sleep(0.1)
         
-def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,pref:list[subprocess.Popen]):            
-    args=[g for f in [[sys.executable,'image_process.py','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
+def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,pref:list[subprocess.Popen]):            
+    args=[g for f in [[sys.executable,'image_process.py','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not rainbow else ['--rainbow'],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
     pref[0]=subprocess.Popen(args=args)
 def drain(ppool:list[list[subprocess.Popen]]):
     found=True
@@ -277,7 +277,7 @@ def main(args:MultiImageCommandLineOptions):
             image_process.main(args=iargs)
         else:
             
-            subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,output_height=args.output_height,output_width=args.output_width,output_size=args.output_size,ppool=ppool)
+            subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,output_height=args.output_height,output_width=args.output_width,output_size=args.output_size,rainbow=args.rainbow,ppool=ppool)
     if args.multiprocessing:
         drain(ppool=ppool)
 
