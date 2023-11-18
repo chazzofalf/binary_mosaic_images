@@ -30,12 +30,14 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__output_width:int=None
         self.__output_height:int=None
         self.__output_size:str=None
+        self.__rainbow:bool=None
         
     def __fill_autos(self):
         self.__invert = False if self.__invert is None else self.__invert
         self.__cell_invert = False if self.__cell_invert is None else self.__cell_invert
         self.__multiprocessing = False if self.__multiprocessing is None else self.__multiprocessing
         self.__reset_output_dir = False if self.__reset_output_dir is None else self.__reset_output_dir   
+        self.__rainbow = False if self.__rainbow is None else self.__rainbow
              
     def __sub_validate(self) -> bool:
         self.__fill_autos()
@@ -44,7 +46,12 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
                 and (( self.__output_size is None and self.__output_height is None and self.__output_width is None) or \
                     (self.__output_size is None and self.__output_height is not None and self.__output_width is not None) or \
                     (self.__output_size is not None and self.__output_height is None and self.__output_width is None)
-                     )
+                     ) and \
+                         (
+                             (self.__colorhex is None and not self.__rainbow) or \
+                                 (self.__colorhex is not None and not self.__rainbow) or \
+                                     (self.__colorhex is None and self.__rainbow)
+                         )
     
     def validate(self) -> bool:
         return super().validate() \
@@ -108,6 +115,11 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
                 self.__output_size = value.string_value
             else:
                 raise ValueError()
+        def set_rainbow_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'rainbow' and self.__rainbow is None:
+                self.__rainbow = value.bool_value
+            else:
+                raise ValueError()
                         
         self._populate_option('input_directory',command_line_parser.BaseHelpfulCommandLineOption('--input_directory The original folder containing an set of image files.',set_input_directory_cmd))
         self._populate_option('output_dir',command_line_parser.BaseHelpfulCommandLineOption('--output_dir The folder to place output files.',set_output_dir_cmd))
@@ -119,6 +131,7 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self._populate_option('output_width',command_line_parser.BaseHelpfulCommandLineOption('--output_width Sets the output width.',set_output_width_cmd))
         self._populate_option('output_height',command_line_parser.BaseHelpfulCommandLineOption('--output_height Sets the output height.',set_output_height_cmd))
         self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption('--output_size Sets the output size (WxH or FFMPEG-compatible abbreviation).',set_output_size_cmd))
+        self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_cmd))
         
     @property 
     def reset_output_dir(self):
@@ -193,7 +206,13 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         return self.__output_size
     @output_size.setter
     def output_size(self,output_size:str):        
-        self.__output_size=output_size        
+        self.__output_size=output_size   
+    @property
+    def rainbow(self):
+        return self.__rainbow
+    @rainbow.setter
+    def rainbow(self,rainbow:bool):
+        self.__rainbow=rainbow     
 
 def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,ppool:list[list[subprocess.Popen]]):
     found=False    
@@ -248,7 +267,8 @@ def main(args:MultiImageCommandLineOptions):
             iargs.img_out_name=str(output)
             iargs.colorhex=args.colorhex
             iargs.invert=args.invert
-            iargs.cell_invert=args.cell_invert            
+            iargs.cell_invert=args.cell_invert  
+            iargs.rainbow=args.rainbow          
             if args.output_size is not None:
                 iargs.output_size=args.output_size
             elif args.output_height is not None and args.output_width is not None:

@@ -128,16 +128,17 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             return size_to_be_named
     def __fill_autos(self):
         self.__invert = False if self.__invert is None else self.__invert
-        self.__cell_invert = False if self.__cell_invert else self.__cell_invert        
+        self.__cell_invert = False if self.__cell_invert is None else self.__cell_invert
+        self.__rainbow = False if self.__rainbow is None else self.__rainbow
     def __sub_validate(self):
         self.__fill_autos()
         return self.img_name is not None and \
             self.img_out_name is not None and \
                 (self.output_width is None) == (self.output_height == None) and \
                     (
-                        (self.colorhex is None and self.rainbow is None) or \
-                            (self.colorhex is not None and self.rainbow is None) or \
-                                (self.colorhex is None and self.rainbow is not None)
+                        (self.colorhex is None and not self.rainbow) or \
+                            (self.colorhex is not None and not self.rainbow) or \
+                                (self.colorhex is None and self.rainbow)
                     )
     def validate(self) -> bool:
         return super().validate() and self.__sub_validate()
@@ -394,10 +395,15 @@ def main(args:ImageProcessCommandLineArgs):
         (w_o,h_o) = (w_i * (h_s/h_i),h_s) if r_s > r_i else (w_s,h_i * (w_s/w_i))
         (x_c,y_c) = (w_s/2,h_s/2)
         (x_s,y_s) = (0 if w_o == w_s else x_c-(w_o/2),0 if h_o == h_s else y_c-(h_o/2))
-        rect = tuple((math.floor(f) for f in (x_s,y_s,x_s+w_o,y_s+h_o)))
+        (x_s,y_s,w_o,h_o) = tuple((math.floor(f) for f in (x_s,y_s,w_o,h_o)))
+        rect = tuple((f for f in (x_s,y_s,x_s+w_o,y_s+h_o)))
         bimg=img.resize((math.floor(w_o),math.floor(h_o)))
         img=PIL.Image.new('RGB',(w_s,h_s))
-        img.paste(bimg,rect)            
+        try:
+            img.paste(bimg,rect)            
+        except:
+            print(f'Failed to process {args.img_name} with rect of {rect} into output of {img.size} with input of size of {bimg.size}')
+            return
     img=img.convert(mode='L')
     bit_palette=[bitblock(bytex=f) for f in range(0,256)]
     bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert,rainbow=args.rainbow) for f in bit_palette]
