@@ -253,7 +253,7 @@ def main(args:MultiImageCommandLineOptions):
                 iargs.output_size=args.output_size
             elif args.output_height is not None and args.output_width is not None:
                 iargs.output_height=args.output_height
-                iargs.output_width=args.output_width
+                iargs.output_width=args.output_width                
             image_process.main(args=iargs)
         else:
             
