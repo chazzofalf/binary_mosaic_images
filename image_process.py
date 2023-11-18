@@ -23,6 +23,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self.__output_height:int=None
         self.__common_sizes:dict[str,str]=None
         self.__common_sizes_reversed:dict[str,str]=None
+        self.__rainbow:bool=None
         self.__generate_common_sizes()
     
     def __populate_sizes(self):
@@ -127,12 +128,18 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             return size_to_be_named
     def __fill_autos(self):
         self.__invert = False if self.__invert is None else self.__invert
-        self.__cell_invert = False if self.__cell_invert else self.__cell_invert        
+        self.__cell_invert = False if self.__cell_invert is None else self.__cell_invert
+        self.__rainbow = False if self.__rainbow is None else self.__rainbow
     def __sub_validate(self):
         self.__fill_autos()
         return self.img_name is not None and \
             self.img_out_name is not None and \
-                (self.output_width is None) == (self.output_height == None)
+                (self.output_width is None) == (self.output_height == None) and \
+                    (
+                        (self.colorhex is None and not self.rainbow) or \
+                            (self.colorhex is not None and not self.rainbow) or \
+                                (self.colorhex is None and self.rainbow)
+                    )
     def validate(self) -> bool:
         return super().validate() and self.__sub_validate()
     @property 
@@ -188,7 +195,12 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             (self.__output_width,self.__output_height) = tuple((int(f) for f in self.__size_for_name(output_size).split('x')))
         else:
             (self.__output_width,self.__output_height) = (None,None)
-    
+    @property
+    def rainbow(self):
+        return self.__rainbow
+    @rainbow.setter
+    def rainbow(self,rainbow:bool):
+        self.__rainbow=rainbow
     
     
     def __set_img_name(self,key:str,value:command_line_parser.CommandLineValue):
@@ -231,6 +243,11 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             self.output_size=value.string_value
         else:
             raise ValueError()
+    def __set_rainbow_call(self,key:str,value:command_line_parser.CommandLineValue):
+        if key == 'rainbow' and self.__rainbow is None:
+            self.rainbow=value.bool_value
+        else:
+            raise ValueError()
     def _populate_options(self):
         def set_img_name_call(key:str,value:command_line_parser.CommandLineValue):
             self.__set_img_name(key=key,value=value)
@@ -248,6 +265,8 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             self.__set_output_height_call(key=key,value=value)
         def set_output_size_call(key:str,value:command_line_parser.CommandLineValue):
             self.__set_output_size_call(key=key,value=value)
+        def set_rainbow_call(key:str,value:command_line_parser.CommandLineValue):
+            self.__set_rainbow_call(key=key,value=value)
         self._populate_option('img_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='--img_name The name of the input image',hydrate_action=set_img_name_call))
         self._populate_option('img_out_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='--img_out_name The name of the output image',hydrate_action=set_img_out_name_call))
         self._populate_option('colorhex',command_line_parser.BaseHelpfulCommandLineOption(help_text='--colorhex The general color of the output image',hydrate_action=set_colorhex_call))
@@ -256,6 +275,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self._populate_option('output_width',command_line_parser.BaseHelpfulCommandLineOption(help_text='--output_width The width of the output',hydrate_action=set_output_width_call))
         self._populate_option('output_height',command_line_parser.BaseHelpfulCommandLineOption(help_text='--output_height The width of the output',hydrate_action=set_output_height_call))
         self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption(help_text='--output_size The width of the output (in WxH format or use and abbreviation [abbreviations are made to be compatible with FFMPEGs abbreviations])',hydrate_action=set_output_size_call))
+        self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_call))
 def get_pixel(x: int, y: int,img: PIL.Image.Image):
     return img.getpixel((x % img.width,y % img.height))
 def get_sector_pixel(x: int, y: int,lookup: list):    
@@ -300,25 +320,70 @@ def bitblock(bytex:int):
         imgo.putpixel((2,3),255-bytex)
     return imgo
 
-def colorize_image(img:PIL.Image,colorhex:str,invert:bool):
-    if colorhex is not None and colorhex.startswith('#'):
-        red=int((colorhex[1:])[:2],base=16)
-        green=int((colorhex[3:])[:2],base=16)
-        blue=int((colorhex[5:])[:2],base=16)
-        tempimgout=PIL.Image.new('RGB',img.size)
+def colorize_image(img:PIL.Image,colorhex:str,invert:bool,rainbow:bool):
+    def invertc(color:tuple[int,int,int]) -> tuple[int,int,int]:
+        def map_channel(channel:int):
+            return 255-channel
+        return tuple((map_channel(f) for f in color))
+    def hex_to_color(hexcode:str):
+        if hexcode is not None and hexcode.startswith('#'):
+            red=int((hexcode[1:])[:2],base=16)
+            green=int((hexcode[3:])[:2],base=16)
+            blue=int((hexcode[5:])[:2],base=16)
+            return (red,green,blue)
+        raise ValueError()
+    def colorize_gray(grayscale:int,color:tuple[int,int,int]) -> tuple[int,int,int]:
+        return tuple((math.floor((grayscale/255)*f) for f in color))   
+    def mix(colorA:tuple[int,int,int],colorB:tuple[int,int,int],fractB:float):
+        def map_channel(channelA:int,channelB:int) -> tuple[int,int,int]:
+            return math.floor(((1.0-fractB)*channelA)+(fractB*channelB))
+        return tuple(map(map_channel,colorA,colorB))
+    def convert_gray_to_rainbow_color(grayscale:int):
+        red_color=(255,0,0)
+        yellow_color=(255,255,0)
+        green_color=(0,255,0)
+        cyan_color=(0,255,255)
+        blue_color=(0,0,255)
+        magenta_color=(255,0,255)
+        primaries=[blue_color,cyan_color,green_color,yellow_color,red_color,magenta_color]
+        raw_index=((grayscale/255)*(len(primaries)-1))
+        primary_index=math.floor(raw_index)
+        fract_index=raw_index-primary_index
+        if fract_index==0:
+            color=primaries[primary_index]
+        else:
+            color=mix(primaries[primary_index],primaries[primary_index+1],fract_index)
+        color=colorize_gray(grayscale,color)
+        return color
+    tempimgout=PIL.Image.new('RGB',img.size)            
+    if colorhex is not None and colorhex.startswith('#') and not rainbow:
+        colorizing_color=hex_to_color(colorhex)        
         for y in range(0,tempimgout.height):
             for x in range(0,tempimgout.width):
                 cg=img.getpixel((x,y))
-                tempimgout.putpixel((x,y),(math.floor(cg*(red/256)),math.floor(cg*green/256),math.floor(cg*blue/256)))
-                
-        imgout=tempimgout
-        imgout=imgout.convert('RGB')
-    if invert:
-        tempimgout=PIL.Image.new('RGB',imgout.size)
+                color=colorize_gray(cg,colorizing_color)
+                if invert:
+                    color=invertc(color)
+                tempimgout.putpixel((x,y),color)                        
+    elif rainbow and colorhex is None:        
+        tempimgout=PIL.Image.new('RGB',img.size)        
         for y in range(0,tempimgout.height):
             for x in range(0,tempimgout.width):
-                tempimgout.putpixel((x,y),(256-imgout.getpixel((x,y))[0],256-imgout.getpixel((x,y))[1],256-imgout.getpixel((x,y))[2]))          
-        imgout=tempimgout
+                cg=img.getpixel((x,y))
+                color=convert_gray_to_rainbow_color(cg)
+                if invert:
+                    color=invertc(color)
+                tempimgout.putpixel((x,y),color)
+    elif not rainbow and colorhex is None:                
+        for y in range(0,tempimgout.height):
+            for x in range(0,tempimgout.width):
+                cg=img.getpixel((x,y))
+                color=colorize_gray(cg,(255,255,255))
+                if invert:
+                    color=invertc(color)
+                tempimgout.putpixel((x,y),color)
+    imgout=tempimgout
+    imgout=imgout.convert('RGB')
     return imgout
 
 def main(args:ImageProcessCommandLineArgs):
@@ -330,13 +395,18 @@ def main(args:ImageProcessCommandLineArgs):
         (w_o,h_o) = (w_i * (h_s/h_i),h_s) if r_s > r_i else (w_s,h_i * (w_s/w_i))
         (x_c,y_c) = (w_s/2,h_s/2)
         (x_s,y_s) = (0 if w_o == w_s else x_c-(w_o/2),0 if h_o == h_s else y_c-(h_o/2))
-        rect = tuple((math.floor(f) for f in (x_s,y_s,x_s+w_o,y_s+h_o)))
+        (x_s,y_s,w_o,h_o) = tuple((math.floor(f) for f in (x_s,y_s,w_o,h_o)))
+        rect = tuple((f for f in (x_s,y_s,x_s+w_o,y_s+h_o)))
         bimg=img.resize((math.floor(w_o),math.floor(h_o)))
         img=PIL.Image.new('RGB',(w_s,h_s))
-        img.paste(bimg,rect)            
+        try:
+            img.paste(bimg,rect)            
+        except:
+            print(f'Failed to process {args.img_name} with rect of {rect} into output of {img.size} with input of size of {bimg.size}')
+            return
     img=img.convert(mode='L')
     bit_palette=[bitblock(bytex=f) for f in range(0,256)]
-    bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert) for f in bit_palette]
+    bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert,rainbow=args.rainbow) for f in bit_palette]
     img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
     imgout=PIL.Image.new('RGB',img.size)
     for y in range(0,img_map.height):
