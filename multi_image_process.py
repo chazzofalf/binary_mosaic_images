@@ -1,3 +1,4 @@
+from typing import Iterable
 import image_process
 import os
 import pathlib
@@ -31,6 +32,7 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__output_height:int=None
         self.__output_size:str=None
         self.__rainbow:bool=None
+        self.__palettized:bool=None
         
     def __fill_autos(self):
         self.__invert = False if self.__invert is None else self.__invert
@@ -38,7 +40,16 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__multiprocessing = False if self.__multiprocessing is None else self.__multiprocessing
         self.__reset_output_dir = False if self.__reset_output_dir is None else self.__reset_output_dir   
         self.__rainbow = False if self.__rainbow is None else self.__rainbow
-             
+        self.__palettized = False if self.__palettized is None else self.__palettized
+    def __is_one_or_none_of(self,items:Iterable[bool]):
+        found_true=False
+        for f in items:
+            if f:
+                if not found_true:
+                    found_true=True
+                else:
+                    return False
+        return True         
     def __sub_validate(self) -> bool:
         self.__fill_autos()
         return self.__input_directory is not None \
@@ -48,9 +59,7 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
                     (self.__output_size is not None and self.__output_height is None and self.__output_width is None)
                      ) and \
                          (
-                             (self.__colorhex is None and not self.__rainbow) or \
-                                 (self.__colorhex is not None and not self.__rainbow) or \
-                                     (self.__colorhex is None and self.__rainbow)
+                             self.__is_one_or_none_of((self.__colorhex is not None,self.__rainbow,self.__palettized))                             
                          )
     
     def validate(self) -> bool:
@@ -120,6 +129,11 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
                 self.__rainbow = value.bool_value
             else:
                 raise ValueError()
+        def set_palettized_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'palettized' and self.__palettized is None:
+                self.__palettized = value.bool_value
+            else:
+                raise ValueError()
                         
         self._populate_option('input_directory',command_line_parser.BaseHelpfulCommandLineOption('--input_directory The original folder containing an set of image files.',set_input_directory_cmd))
         self._populate_option('output_dir',command_line_parser.BaseHelpfulCommandLineOption('--output_dir The folder to place output files.',set_output_dir_cmd))
@@ -132,7 +146,7 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self._populate_option('output_height',command_line_parser.BaseHelpfulCommandLineOption('--output_height Sets the output height.',set_output_height_cmd))
         self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption('--output_size Sets the output size (WxH or FFMPEG-compatible abbreviation).',set_output_size_cmd))
         self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_cmd))
-        
+        self._populate_option('palettized',command_line_parser.BaseHelpfulCommandLineOption(help_text='--palettized Reduce this image to a 256 color image.',hydrate_action=set_palettized_cmd))        
     @property 
     def reset_output_dir(self):
         return self.__reset_output_dir
@@ -212,23 +226,29 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         return self.__rainbow
     @rainbow.setter
     def rainbow(self,rainbow:bool):
-        self.__rainbow=rainbow     
+        self.__rainbow=rainbow
+    @property
+    def palettized(self):
+        return self.__palettized
+    @palettized.setter
+    def palettized(self,palettized:bool):
+        self.__palettized=palettized     
 
-def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,ppool:list[list[subprocess.Popen]]):
+def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,ppool:list[list[subprocess.Popen]]):
     found=False    
     while not found:
         idx=0
         for pref in ppool:
             if pref[0] is None or pref[0].poll() is not None:
-                subprocess_do(img_name=img_name,img_out_name=img_out_name,colorhex=colorhex,invert=invert,cell_invert=cell_invert,output_height=output_height,output_width=output_width,output_size=output_size,rainbow=rainbow,pref=pref)
+                subprocess_do(img_name=img_name,img_out_name=img_out_name,colorhex=colorhex,invert=invert,cell_invert=cell_invert,output_height=output_height,output_width=output_width,output_size=output_size,rainbow=rainbow,palettized=palettized,pref=pref)
                 found=True
                 break
             else:
                 idx += 1
         time.sleep(0.1)
         
-def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,pref:list[subprocess.Popen]):            
-    args=[g for f in [[sys.executable,'image_process.py','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not rainbow else ['--rainbow'],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
+def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,pref:list[subprocess.Popen]):            
+    args=[g for f in [[sys.executable,'image_process.py','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not rainbow else ['--rainbow'],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if not palettized else ['--palettized'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
     pref[0]=subprocess.Popen(args=args)
 def drain(ppool:list[list[subprocess.Popen]]):
     found=True
@@ -268,7 +288,8 @@ def main(args:MultiImageCommandLineOptions):
             iargs.colorhex=args.colorhex
             iargs.invert=args.invert
             iargs.cell_invert=args.cell_invert  
-            iargs.rainbow=args.rainbow          
+            iargs.rainbow=args.rainbow    
+            iargs.palettized=args.palettized      
             if args.output_size is not None:
                 iargs.output_size=args.output_size
             elif args.output_height is not None and args.output_width is not None:
@@ -277,7 +298,7 @@ def main(args:MultiImageCommandLineOptions):
             image_process.main(args=iargs)
         else:
             
-            subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,output_height=args.output_height,output_width=args.output_width,output_size=args.output_size,rainbow=args.rainbow,ppool=ppool)
+            subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,output_height=args.output_height,output_width=args.output_width,output_size=args.output_size,rainbow=args.rainbow,palettized=args.palettized,ppool=ppool)
     if args.multiprocessing:
         drain(ppool=ppool)
 

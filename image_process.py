@@ -1,3 +1,4 @@
+from typing import Iterable
 import PIL
 import PIL.Image
 import PIL.ImageDraw
@@ -24,6 +25,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self.__common_sizes:dict[str,str]=None
         self.__common_sizes_reversed:dict[str,str]=None
         self.__rainbow:bool=None
+        self.__palettized:bool=None
         self.__generate_common_sizes()
     
     def __populate_sizes(self):
@@ -130,15 +132,23 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self.__invert = False if self.__invert is None else self.__invert
         self.__cell_invert = False if self.__cell_invert is None else self.__cell_invert
         self.__rainbow = False if self.__rainbow is None else self.__rainbow
+        self.__palettized = False if self.__palettized is None else self.__palettized
+    def __is_one_or_none_of(self,items:Iterable[bool]):
+        found_true=False
+        for f in items:
+            if f:
+                if not found_true:
+                    found_true=True
+                else:
+                    return False
+        return True
     def __sub_validate(self):
         self.__fill_autos()
         return self.img_name is not None and \
             self.img_out_name is not None and \
                 (self.output_width is None) == (self.output_height == None) and \
                     (
-                        (self.colorhex is None and not self.rainbow) or \
-                            (self.colorhex is not None and not self.rainbow) or \
-                                (self.colorhex is None and self.rainbow)
+                        self.__is_one_or_none_of((self.colorhex is not None,self.rainbow,self.palettized))                        
                     )
     def validate(self) -> bool:
         return super().validate() and self.__sub_validate()
@@ -201,6 +211,12 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
     @rainbow.setter
     def rainbow(self,rainbow:bool):
         self.__rainbow=rainbow
+    @property
+    def palettized(self):
+        return self.__palettized
+    @palettized.setter
+    def palettized(self,palettized:bool):
+        self.__palettized=palettized
     
     
     def __set_img_name(self,key:str,value:command_line_parser.CommandLineValue):
@@ -248,6 +264,11 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             self.rainbow=value.bool_value
         else:
             raise ValueError()
+    def __set_palettized_call(self,key:str,value:command_line_parser.CommandLineValue):
+        if key == 'palettized' and self.__palettized is None:
+            self.palettized=value.bool_value
+        else:
+            raise ValueError()
     def _populate_options(self):
         def set_img_name_call(key:str,value:command_line_parser.CommandLineValue):
             self.__set_img_name(key=key,value=value)
@@ -267,6 +288,8 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             self.__set_output_size_call(key=key,value=value)
         def set_rainbow_call(key:str,value:command_line_parser.CommandLineValue):
             self.__set_rainbow_call(key=key,value=value)
+        def set_palettized_call(key:str,value:command_line_parser.CommandLineValue):
+            self.__set_palettized_call(key=key,value=value)
         self._populate_option('img_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='--img_name The name of the input image',hydrate_action=set_img_name_call))
         self._populate_option('img_out_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='--img_out_name The name of the output image',hydrate_action=set_img_out_name_call))
         self._populate_option('colorhex',command_line_parser.BaseHelpfulCommandLineOption(help_text='--colorhex The general color of the output image',hydrate_action=set_colorhex_call))
@@ -276,6 +299,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self._populate_option('output_height',command_line_parser.BaseHelpfulCommandLineOption(help_text='--output_height The width of the output',hydrate_action=set_output_height_call))
         self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption(help_text='--output_size The width of the output (in WxH format or use and abbreviation [abbreviations are made to be compatible with FFMPEGs abbreviations])',hydrate_action=set_output_size_call))
         self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_call))
+        self._populate_option('palettized',command_line_parser.BaseHelpfulCommandLineOption(help_text='--palettized Reduce this image to a 256 color image.',hydrate_action=set_palettized_call))
 def get_pixel(x: int, y: int,img: PIL.Image.Image):
     return img.getpixel((x % img.width,y % img.height))
 def get_sector_pixel(x: int, y: int,lookup: list):    
@@ -318,6 +342,24 @@ def bitblock(bytex:int):
         imgo.putpixel((2,1),255-bytex)
         imgo.putpixel((2,2),255-bytex)
         imgo.putpixel((2,3),255-bytex)
+    return imgo
+def bitblock_color(bytex:int,palapal:list[tuple[tuple[int,int,int],tuple[int,int,int],int]]):
+    (color,anticolor,dist)=palapal[bytex]
+    imgo=PIL.Image.new(mode='RGB',size=(5,5),color=color)
+    
+    if dist < 128:
+        imgo.putpixel((1,1),anticolor)
+        imgo.putpixel((2,1),anticolor)
+        imgo.putpixel((3,1),anticolor)
+        imgo.putpixel((1,2),anticolor)
+        imgo.putpixel((3,2),anticolor)
+        imgo.putpixel((1,3),anticolor)
+        imgo.putpixel((2,3),anticolor)
+        imgo.putpixel((3,3),anticolor)
+    else:
+        imgo.putpixel((2,1),anticolor)
+        imgo.putpixel((2,2),anticolor)
+        imgo.putpixel((2,3),anticolor)
     return imgo
 
 def colorize_image(img:PIL.Image,colorhex:str,invert:bool,rainbow:bool):
@@ -404,14 +446,43 @@ def main(args:ImageProcessCommandLineArgs):
         except:
             print(f'Failed to process {args.img_name} with rect of {rect} into output of {img.size} with input of size of {bimg.size}')
             return
-    img=img.convert(mode='L')
-    bit_palette=[bitblock(bytex=f) for f in range(0,256)]
-    bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert,rainbow=args.rainbow) for f in bit_palette]
-    img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
-    imgout=PIL.Image.new('RGB',img.size)
-    for y in range(0,img_map.height):
-        for x in range(0,img_map.width):
-            imgout.paste(im=bit_palette[img_map.getpixel((x,y))],box=(x*5,y*5))         
+    if args.colorhex is not None or args.invert or args.rainbow or not args.palettized:
+        img=img.convert(mode='L')
+        bit_palette=[bitblock(bytex=f) for f in range(0,256)]
+        bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert,rainbow=args.rainbow) for f in bit_palette]
+        img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
+        imgout=PIL.Image.new('RGB',img.size)
+        for y in range(0,img_map.height):
+            for x in range(0,img_map.width):
+                imgout.paste(im=bit_palette[img_map.getpixel((x,y))],box=(x*5,y*5))   
+    elif args.palettized:
+        img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
+        img_map=img_map.convert(mode='P',dither=PIL.Image.FLOYDSTEINBERG,palette=PIL.Image.Palette.ADAPTIVE,colors=256)
+        def chunk3(items:list[int]):
+            def chunk3gen(items_:list[int]):
+                chunk:list[int]=[]
+                for i in items_:
+                    chunk.append(i)
+                    if len(chunk) == 3:
+                        yield chunk
+                        chunk=[]
+            return [f for f in chunk3gen(items_=items)]
+        pal=chunk3(img_map.getpalette())
+        apal=[[255-g for g in f] for f in pal]
+        pal=[tuple(f) for f in pal]
+        apal=[tuple(f) for f in apal]
+        def lcolorforrgb(c:tuple[int,int,int]):
+            timg=PIL.Image.new(mode='RGB',size=(1,1),color=c)
+            timg=timg.convert(mode='L')
+            return timg.getpixel((0,0))
+        def palapalmap(c:tuple[int,int,int],ac:tuple[int,int,int]):
+            return (c,ac,lcolorforrgb(c))
+        palapal=[f for f in map(palapalmap,pal,apal)]
+        bit_palette=[bitblock_color(bytex=f,palapal=palapal) for f in range(0,len(palapal))]
+        imgout=PIL.Image.new(mode='RGB',size=(img.width,img.height))
+        for y in range(0,img_map.height):
+            for x in range(0,img_map.width):
+                imgout.paste(im=bit_palette[img_map.getpixel((x,y))],box=(x*5,y*5)) 
     imgout.save(args.img_out_name)
 
 if __name__=='__main__':
