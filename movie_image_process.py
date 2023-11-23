@@ -1,4 +1,5 @@
 import subprocess
+from typing import Iterable
 import multi_image_process
 import os
 import sys
@@ -28,6 +29,7 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self.__output_height:int=None
         self.__output_size:str=None
         self.__rainbow:bool=None
+        self.__palettized:bool=None
         
         
     def __fill_autos(self):
@@ -36,7 +38,16 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self.__use_audio = False if self.__use_audio is None else self.__use_audio
         self.__overwrite_video = False if self.__overwrite_video is None else self.__overwrite_video   
         self.__rainbow = False if self.__rainbow is None else self.__rainbow
-             
+        self.__palettized = False if self.__palettized is None else self.__palettized
+    def __is_one_or_none_of(self,items:Iterable[bool]):
+        found_true=False
+        for f in items:
+            if f:
+                if not found_true:
+                    found_true=True
+                else:
+                    return False
+        return True         
     def __sub_validate(self):
         self.__fill_autos()
         return self.__ffmpeg_executable_path is not None and \
@@ -47,9 +58,7 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
                     (self.__output_size is not None and self.__output_height is None and self.__output_width is None)
                      ) and \
                         (
-                            (self.__color_hex is None and not self.__rainbow) or \
-                                (self.__color_hex is not None and not self.__rainbow) or \
-                                    (self.__color_hex is None and self.__rainbow)
+                            self.__is_one_or_none_of((self.__color_hex is not None,self.__rainbow,self.__palettized))                            
                         )
                 
     def _populate_options(self):
@@ -132,6 +141,11 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
                 self.__rainbow = value.bool_value
             else:
                 raise ValueError()
+        def set_palettized_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'palettized' and self.__palettized is None:
+                self.__palettized = value.bool_value
+            else:
+                raise ValueError()
             
         self._populate_option('ffmpeg_executable_path',command_line_parser.BaseHelpfulCommandLineOption('--ffmpeg_executable_path Path to the ffmpeg executable (✅Required)',set_ffmpeg_executable_path_cmd))
         self._populate_option('movie_input_path',command_line_parser.BaseHelpfulCommandLineOption('--movie_input_path Path to the input movie file (✅)(🦋Make sure the original video producer is okay with it first!) ',set_movie_input_path_cmd))
@@ -147,6 +161,7 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self._populate_option('output_height',command_line_parser.BaseHelpfulCommandLineOption('--output_height Sets the output height.',set_output_height_cmd))
         self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption('--output_size Sets the output size (WxH or FFMPEG-compatible abbreviation).',set_output_size_cmd))
         self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_cmd))
+        self._populate_option('palettized',command_line_parser.BaseHelpfulCommandLineOption(help_text='--palettized Make this look like a infrared rainbow display!',hydrate_action=set_palettized_cmd))
         
     def validate(self) -> bool:
         return super().validate() and self.__sub_validate()
@@ -255,6 +270,12 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
     @rainbow.setter
     def rainbow(self,rainbow:bool):
         self.__rainbow=rainbow  
+    @property
+    def palettized(self):
+        return self.__palettized
+    @palettized.setter
+    def palettized(self,palettized:bool):
+        self.__palettized=palettized    
     
 class TempDirSet(object):
     def __init__(self) -> None:
@@ -344,6 +365,7 @@ def main(args:MovieImageProcessCommandLineOptions):
     iargs.invert=args.invert
     iargs.cell_invert=args.cell_invert  
     iargs.rainbow=args.rainbow  
+    iargs.palettized=args.palettized
     iargs.multiprocessing=True
     if args.output_size is not None:
         iargs.output_size=args.output_size

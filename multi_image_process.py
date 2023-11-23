@@ -40,6 +40,7 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__multiprocessing = False if self.__multiprocessing is None else self.__multiprocessing
         self.__reset_output_dir = False if self.__reset_output_dir is None else self.__reset_output_dir   
         self.__rainbow = False if self.__rainbow is None else self.__rainbow
+        self.__palettized = False if self.__palettized is None else self.__palettized
     def __is_one_or_none_of(self,items:Iterable[bool]):
         found_true=False
         for f in items:

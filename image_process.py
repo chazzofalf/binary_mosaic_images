@@ -132,6 +132,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self.__invert = False if self.__invert is None else self.__invert
         self.__cell_invert = False if self.__cell_invert is None else self.__cell_invert
         self.__rainbow = False if self.__rainbow is None else self.__rainbow
+        self.__palettized = False if self.__palettized is None else self.__palettized
     def __is_one_or_none_of(self,items:Iterable[bool]):
         found_true=False
         for f in items:
