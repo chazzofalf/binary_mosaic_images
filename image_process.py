@@ -343,7 +343,6 @@ def bitblock(bytex:int):
         imgo.putpixel((2,3),255-bytex)
     return imgo
 def bitblock_color(bytex:int,palapal:list[tuple[tuple[int,int,int],tuple[int,int,int],int]]):
-    imgo=PIL.Image.new(mode='L',size=(5,5),color=bytex)    
     (color,anticolor,dist)=palapal[bytex]
     imgo=PIL.Image.new(mode='RGB',size=(5,5),color=color)
     
@@ -471,10 +470,14 @@ def main(args:ImageProcessCommandLineArgs):
         apal=[[255-g for g in f] for f in pal]
         pal=[tuple(f) for f in pal]
         apal=[tuple(f) for f in apal]
+        def lcolorforrgb(c:tuple[int,int,int]):
+            timg=PIL.Image.new(mode='RGB',size=(1,1),color=c)
+            timg=timg.convert(mode='L')
+            return timg.getpixel((0,0))
         def palapalmap(c:tuple[int,int,int],ac:tuple[int,int,int]):
-            return (c,ac,math.floor(math.sqrt((c[0]**2)+(c[1]**2)+(c[2]**2))))
+            return (c,ac,lcolorforrgb(c))
         palapal=[f for f in map(palapalmap,pal,apal)]
-        bit_palette=[bitblock_color(bytex=f,palapal=palapal) for f in range(0,256)]
+        bit_palette=[bitblock_color(bytex=f,palapal=palapal) for f in range(0,len(palapal))]
         imgout=PIL.Image.new(mode='RGB',size=(img.width,img.height))
         for y in range(0,img_map.height):
             for x in range(0,img_map.width):
