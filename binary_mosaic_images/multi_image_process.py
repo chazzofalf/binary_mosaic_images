@@ -8,6 +8,7 @@ import time
 import binary_mosaic_images.command_line_parser as command_line_parser
 import traceback
 import shutil
+import multiprocessing
 from binary_mosaic_images.command_line_parser import CommandLineValue
 
 def isexe():
@@ -238,12 +239,12 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
     def palettized(self,palettized:bool):
         self.__palettized=palettized     
 
-def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,ppool:list[list[subprocess.Popen]]):
+def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,ppool:list[list[multiprocessing.Process]]):
     found=False    
     while not found:
         idx=0
         for pref in ppool:
-            if pref[0] is None or pref[0].poll() is not None:
+            if pref[0] is None or not pref[0].is_alive():
                 subprocess_do(img_name=img_name,img_out_name=img_out_name,colorhex=colorhex,invert=invert,cell_invert=cell_invert,output_height=output_height,output_width=output_width,output_size=output_size,rainbow=rainbow,palettized=palettized,pref=pref)
                 found=True
                 break
@@ -251,15 +252,31 @@ def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,
                 idx += 1
         time.sleep(0.1)
         
-def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,pref:list[subprocess.Popen]):            
-    args=[g for f in [[sys.executable,'-m','binary_mosaic_images'] if not isexe() else [sys.executable] ,['--process-image','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not rainbow else ['--rainbow'],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if not palettized else ['--palettized'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
-    pref[0]=subprocess.Popen(args=args)
-def drain(ppool:list[list[subprocess.Popen]]):
+def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,pref:list[multiprocessing.Process]):            
+    iargs=image_process.ImageProcessCommandLineArgs()
+    iargs.img_name=str(img_name)
+    iargs.img_out_name=str(img_out_name)
+    iargs.colorhex=colorhex
+    iargs.invert=invert
+    iargs.cell_invert=cell_invert
+    iargs.rainbow=rainbow 
+    iargs.palettized=palettized    
+    if output_size is not None:
+        iargs.output_size=output_size
+    elif output_height is not None and output_width is not None:
+        iargs.output_height=output_height
+        iargs.output_width=output_width
+    pref[0]=multiprocessing.Process(target=image_process.main,args=(iargs.to_dict(),))
+    pref[0].start()
+    #args=[g for f in [[sys.executable,'-m','binary_mosaic_images'] if not isexe() else [sys.executable] ,['--process-image','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not rainbow else ['--rainbow'],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if not palettized else ['--palettized'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
+    
+    #pref[0]=subprocess.Popen(args=args)
+def drain(ppool:list[list[multiprocessing.Process]]):
     found=True
     while found:
         found=False
         for pref in ppool:
-            if pref[0] is not None and pref[0].poll() is None:                
+            if pref[0] is not None and pref[0].is_alive() is None:                
                 found=True
                 break
         time.sleep(0.1)

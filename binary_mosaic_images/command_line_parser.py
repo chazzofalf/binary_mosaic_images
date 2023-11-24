@@ -2,6 +2,7 @@ from typing import Any, Callable
 from sys import argv
 from io import BytesIO,TextIOWrapper
 from os import linesep
+import typing
 
 class CommandLineValue(object):
     
@@ -123,6 +124,11 @@ class CommandLineParser(object):
     def iterate(self):
         return ((key,value) for key in self.__args.keys() for value in self.__args[key]) 
 class BaseCommandLineOptions(object):
+    def to_dict(self):
+        x:dict[str,typing.Any]=dict()
+        return x
+    def take_dict(self,dictv:dict[str,typing.Any]):
+        pass
     def __init__(self) -> None:
         pass
     def hydrate_arg(self,key:str,value:CommandLineValue):
@@ -143,12 +149,22 @@ class BaseHelpfulCommandLineOptions(BaseCommandLineOptions):
         super().__init__()
         self.__options:dict[str,BaseHelpfulCommandLineOption] = dict()
         self.__helpv:bool=False
-        self.__populate_all_options()
+        self.__populate_all_options()  
+    def take_dict(self, dictv: dict[str, Any]):
+        super().take_dict(dictv)
+        self.help = dictv['help']
+    def to_dict(self):
+        x= super().to_dict()
+        x['help']=self.help
+        return x
     def validate(self) -> bool:
         return True
     @property            
     def help(self):
         return self.__helpv
+    @help.setter
+    def help(self,help:bool):
+        self.__helpv=help
     def __populate_help_options(self):        
         def help_cmd(key:str,value:CommandLineValue):            
             if key in ['help','h'] and value.bool_value:
