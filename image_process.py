@@ -2,7 +2,7 @@ from typing import Iterable
 import PIL
 import PIL.Image
 import PIL.ImageDraw
-import command_line_parser 
+import binary_mosaic_images.command_line_parser as command_line_parser
 import math
 import traceback
 from sys import argv

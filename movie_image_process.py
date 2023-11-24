@@ -1,11 +1,11 @@
 import subprocess
 from typing import Iterable
-import multi_image_process
+import binary_mosaic_images.multi_image_process as multi_image_process
 import os
 import sys
 import pathlib
 import shutil
-import command_line_parser
+import binary_mosaic_images.command_line_parser as command_line_parser
 import traceback
 class MovieImageProcessCommandLineOptionsHydrator(command_line_parser.BaseHelpfulCommandLineHydrator):
     def __init__(self) -> None:

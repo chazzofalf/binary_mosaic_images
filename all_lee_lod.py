@@ -3,9 +3,9 @@
 # Why the strange spelling? 🤫 It's a secret!
 
 from sys import argv
-import image_process
-import multi_image_process
-import movie_image_process
+import binary_mosaic_images.image_process as image_process
+import binary_mosaic_images.multi_image_process as multi_image_process
+import binary_mosaic_images.movie_image_process as movie_image_process
 
 def main(args:list[str]):
     needhelp=False
