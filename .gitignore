@@ -1,2 +1,4 @@
-test_data/
-__pycache__/
+build/
+*.egg-info/
+dist/
+__main__.spec

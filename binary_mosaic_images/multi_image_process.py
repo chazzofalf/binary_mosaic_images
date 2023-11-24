@@ -1,15 +1,19 @@
 from typing import Iterable
-import image_process
+import binary_mosaic_images.image_process as image_process
 import os
 import pathlib
 import sys
 import subprocess
 import time
-import command_line_parser
+import binary_mosaic_images.command_line_parser as command_line_parser
 import traceback
 import shutil
-from command_line_parser import CommandLineValue
+from binary_mosaic_images.command_line_parser import CommandLineValue
 
+def isexe():
+    cmdexe=sys.argv[0]
+    sysexe=sys.executable
+    return sysexe==cmdexe
 bconvert=CommandLineValue.bool_as_string
 class MultiImageCommandLineOptionsHydrator(command_line_parser.BaseHelpfulCommandLineHydrator):
     def __init__(self) -> None:
@@ -248,7 +252,7 @@ def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,
         time.sleep(0.1)
         
 def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,pref:list[subprocess.Popen]):            
-    args=[g for f in [[sys.executable,'image_process.py','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not rainbow else ['--rainbow'],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if not palettized else ['--palettized'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
+    args=[g for f in [[sys.executable,'-m','binary_mosaic_images'] if not isexe() else [sys.executable] ,['--process-image','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not rainbow else ['--rainbow'],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if not palettized else ['--palettized'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
     pref[0]=subprocess.Popen(args=args)
 def drain(ppool:list[list[subprocess.Popen]]):
     found=True
@@ -302,10 +306,10 @@ def main(args:MultiImageCommandLineOptions):
     if args.multiprocessing:
         drain(ppool=ppool)
 
-if __name__=='__main__':
+def smain(args:list[str]):
     cp=command_line_parser.CommandLineParser()
-    if cp.validate(sys.argv):                
-        cp.parse_args(sys.argv)    
+    if cp.validate(args):                
+        cp.parse_args(args)    
         bclh = MultiImageCommandLineOptionsHydrator()
         out:list[MultiImageCommandLineOptions]=[]
         ex_out:list[Exception]=[]
@@ -322,3 +326,6 @@ if __name__=='__main__':
             traceback.print_exception(ex_out[0])
     else:
         print('Not valid args')
+        
+if __name__=='__main__':
+    smain(sys.argv)

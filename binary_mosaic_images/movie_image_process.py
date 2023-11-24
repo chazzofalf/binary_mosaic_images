@@ -1,11 +1,11 @@
 import subprocess
 from typing import Iterable
-import multi_image_process
+import binary_mosaic_images.multi_image_process as multi_image_process
 import os
 import sys
 import pathlib
 import shutil
-import command_line_parser
+import binary_mosaic_images.command_line_parser as command_line_parser
 import traceback
 class MovieImageProcessCommandLineOptionsHydrator(command_line_parser.BaseHelpfulCommandLineHydrator):
     def __init__(self) -> None:
@@ -380,11 +380,11 @@ def main(args:MovieImageProcessCommandLineOptions):
         return 1
     delete_temp_dirs(tds=tds)
     return 0
-    
-if __name__=="__main__":
+
+def smain(args:list[str]):
     cp=command_line_parser.CommandLineParser()
-    if cp.validate(sys.argv):                
-        cp.parse_args(sys.argv)    
+    if cp.validate(args):                
+        cp.parse_args(args)    
         bclh = MovieImageProcessCommandLineOptionsHydrator()
         out:list[MovieImageProcessCommandLineOptions]=[]
         ex_out:list[Exception]=[]
@@ -397,3 +397,6 @@ if __name__=="__main__":
             traceback.print_exception(ex_out[0])
     else:
         print('Not valid args')
+    
+if __name__=="__main__":
+    smain(sys.argv)
