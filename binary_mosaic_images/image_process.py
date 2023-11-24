@@ -1,4 +1,5 @@
 from typing import Iterable
+import typing
 import PIL
 import PIL.Image
 import PIL.ImageDraw
@@ -27,6 +28,31 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self.__rainbow:bool=None
         self.__palettized:bool=None
         self.__generate_common_sizes()
+    def to_dict(self):
+        x= super().to_dict()
+        x['img_name']=self.img_name
+        x['img_out_name']=self.img_out_name
+        x['colorhex']=self.colorhex
+        x['invert']=self.invert
+        x['cell_invert']=self.cell_invert
+        x['output_width']=self.output_width
+        x['output_height']=self.output_height
+        x['rainbow']=self.rainbow
+        x['palettized']=self.palettized
+        
+        
+        return x
+    def take_dict(self,dictv:dict[str:typing.Any]):
+        super().take_dict(dictv=dictv)
+        self.img_name=dictv['img_name']
+        self.img_out_name=dictv['img_out_name']
+        self.colorhex=dictv['colorhex']
+        self.invert=dictv['invert']
+        self.cell_invert=dictv['cell_invert']
+        self.output_width=dictv['output_width']
+        self.output_height=dictv['output_height']
+        self.rainbow=dictv['rainbow']
+        self.palettized=dictv['palettized']
     
     def __populate_sizes(self):
         self.__common_sizes['ntsc']='720x480'
@@ -93,6 +119,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
                 return self.__string
         self.__common_sizes:dict[str:str]=dict()
         self.__populate_sizes()
+        
         def common_sizes():
             for f in self.__common_sizes.keys():
                 if isinstance(f,str):
@@ -428,62 +455,67 @@ def colorize_image(img:PIL.Image,colorhex:str,invert:bool,rainbow:bool):
     imgout=imgout.convert('RGB')
     return imgout
 
-def main(args:ImageProcessCommandLineArgs):
-    img=PIL.Image.open(args.img_name)
-    img=img.convert('RGB')
-    if args.output_height is not None and args.output_width is not None:
-        (w_i,h_i,w_s,h_s) = (img.width,img.height,args.output_width,args.output_height)
-        (r_i,r_s) = (w_i/h_i,w_s/h_s)
-        (w_o,h_o) = (w_i * (h_s/h_i),h_s) if r_s > r_i else (w_s,h_i * (w_s/w_i))
-        (x_c,y_c) = (w_s/2,h_s/2)
-        (x_s,y_s) = (0 if w_o == w_s else x_c-(w_o/2),0 if h_o == h_s else y_c-(h_o/2))
-        (x_s,y_s,w_o,h_o) = tuple((math.floor(f) for f in (x_s,y_s,w_o,h_o)))
-        rect = tuple((f for f in (x_s,y_s,x_s+w_o,y_s+h_o)))
-        bimg=img.resize((math.floor(w_o),math.floor(h_o)))
-        img=PIL.Image.new('RGB',(w_s,h_s))
-        try:
-            img.paste(bimg,rect)            
-        except:
-            print(f'Failed to process {args.img_name} with rect of {rect} into output of {img.size} with input of size of {bimg.size}')
-            return
-    if args.colorhex is not None or args.invert or args.rainbow or not args.palettized:
-        img=img.convert(mode='L')
-        bit_palette=[bitblock(bytex=f) for f in range(0,256)]
-        bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert,rainbow=args.rainbow) for f in bit_palette]
-        img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
-        imgout=PIL.Image.new('RGB',img.size)
-        for y in range(0,img_map.height):
-            for x in range(0,img_map.width):
-                imgout.paste(im=bit_palette[img_map.getpixel((x,y))],box=(x*5,y*5))   
-    elif args.palettized:
-        img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
-        img_map=img_map.convert(mode='P',dither=PIL.Image.FLOYDSTEINBERG,palette=PIL.Image.Palette.ADAPTIVE,colors=256)
-        def chunk3(items:list[int]):
-            def chunk3gen(items_:list[int]):
-                chunk:list[int]=[]
-                for i in items_:
-                    chunk.append(i)
-                    if len(chunk) == 3:
-                        yield chunk
-                        chunk=[]
-            return [f for f in chunk3gen(items_=items)]
-        pal=chunk3(img_map.getpalette())
-        apal=[[255-g for g in f] for f in pal]
-        pal=[tuple(f) for f in pal]
-        apal=[tuple(f) for f in apal]
-        def lcolorforrgb(c:tuple[int,int,int]):
-            timg=PIL.Image.new(mode='RGB',size=(1,1),color=c)
-            timg=timg.convert(mode='L')
-            return timg.getpixel((0,0))
-        def palapalmap(c:tuple[int,int,int],ac:tuple[int,int,int]):
-            return (c,ac,lcolorforrgb(c))
-        palapal=[f for f in map(palapalmap,pal,apal)]
-        bit_palette=[bitblock_color(bytex=f,palapal=palapal) for f in range(0,len(palapal))]
-        imgout=PIL.Image.new(mode='RGB',size=(img.width,img.height))
-        for y in range(0,img_map.height):
-            for x in range(0,img_map.width):
-                imgout.paste(im=bit_palette[img_map.getpixel((x,y))],box=(x*5,y*5)) 
-    imgout.save(args.img_out_name)
+def main(args:ImageProcessCommandLineArgs|dict[str,typing.Any]):
+    if isinstance(args,dict):
+        x=ImageProcessCommandLineArgs()
+        x.take_dict(args)
+        main(args=x)
+    else:
+        img=PIL.Image.open(args.img_name)
+        img=img.convert('RGB')
+        if args.output_height is not None and args.output_width is not None:
+            (w_i,h_i,w_s,h_s) = (img.width,img.height,args.output_width,args.output_height)
+            (r_i,r_s) = (w_i/h_i,w_s/h_s)
+            (w_o,h_o) = (w_i * (h_s/h_i),h_s) if r_s > r_i else (w_s,h_i * (w_s/w_i))
+            (x_c,y_c) = (w_s/2,h_s/2)
+            (x_s,y_s) = (0 if w_o == w_s else x_c-(w_o/2),0 if h_o == h_s else y_c-(h_o/2))
+            (x_s,y_s,w_o,h_o) = tuple((math.floor(f) for f in (x_s,y_s,w_o,h_o)))
+            rect = tuple((f for f in (x_s,y_s,x_s+w_o,y_s+h_o)))
+            bimg=img.resize((math.floor(w_o),math.floor(h_o)))
+            img=PIL.Image.new('RGB',(w_s,h_s))
+            try:
+                img.paste(bimg,rect)            
+            except:
+                print(f'Failed to process {args.img_name} with rect of {rect} into output of {img.size} with input of size of {bimg.size}')
+                return
+        if args.colorhex is not None or args.invert or args.rainbow or not args.palettized:
+            img=img.convert(mode='L')
+            bit_palette=[bitblock(bytex=f) for f in range(0,256)]
+            bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert,rainbow=args.rainbow) for f in bit_palette]
+            img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
+            imgout=PIL.Image.new('RGB',img.size)
+            for y in range(0,img_map.height):
+                for x in range(0,img_map.width):
+                    imgout.paste(im=bit_palette[img_map.getpixel((x,y))],box=(x*5,y*5))   
+        elif args.palettized:
+            img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
+            img_map=img_map.convert(mode='P',dither=PIL.Image.FLOYDSTEINBERG,palette=PIL.Image.Palette.ADAPTIVE,colors=256)
+            def chunk3(items:list[int]):
+                def chunk3gen(items_:list[int]):
+                    chunk:list[int]=[]
+                    for i in items_:
+                        chunk.append(i)
+                        if len(chunk) == 3:
+                            yield chunk
+                            chunk=[]
+                return [f for f in chunk3gen(items_=items)]
+            pal=chunk3(img_map.getpalette())
+            apal=[[255-g for g in f] for f in pal]
+            pal=[tuple(f) for f in pal]
+            apal=[tuple(f) for f in apal]
+            def lcolorforrgb(c:tuple[int,int,int]):
+                timg=PIL.Image.new(mode='RGB',size=(1,1),color=c)
+                timg=timg.convert(mode='L')
+                return timg.getpixel((0,0))
+            def palapalmap(c:tuple[int,int,int],ac:tuple[int,int,int]):
+                return (c,ac,lcolorforrgb(c))
+            palapal=[f for f in map(palapalmap,pal,apal)]
+            bit_palette=[bitblock_color(bytex=f,palapal=palapal) for f in range(0,len(palapal))]
+            imgout=PIL.Image.new(mode='RGB',size=(img.width,img.height))
+            for y in range(0,img_map.height):
+                for x in range(0,img_map.width):
+                    imgout.paste(im=bit_palette[img_map.getpixel((x,y))],box=(x*5,y*5)) 
+        imgout.save(args.img_out_name)
 
 def smain(args:list[str]):
     cp=command_line_parser.CommandLineParser()
