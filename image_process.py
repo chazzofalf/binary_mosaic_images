@@ -485,10 +485,10 @@ def main(args:ImageProcessCommandLineArgs):
                 imgout.paste(im=bit_palette[img_map.getpixel((x,y))],box=(x*5,y*5)) 
     imgout.save(args.img_out_name)
 
-if __name__=='__main__':
+def smain(args:list[str]):
     cp=command_line_parser.CommandLineParser()
-    if cp.validate(argv):                
-        cp.parse_args(argv)    
+    if cp.validate(args):                
+        cp.parse_args(args)    
         bclh = ImageProcessCommandLineArgsHydrator()
         out:list[ImageProcessCommandLineArgs]=[]
         ex_out:list[Exception]=[]
@@ -501,4 +501,7 @@ if __name__=='__main__':
             traceback.print_exception(ex_out[0])
     else:
         print('Not valid args')
+
+if __name__=='__main__':
+    smain(args=argv)
         

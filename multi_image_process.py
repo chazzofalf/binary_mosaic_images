@@ -302,10 +302,10 @@ def main(args:MultiImageCommandLineOptions):
     if args.multiprocessing:
         drain(ppool=ppool)
 
-if __name__=='__main__':
+def smain(args:list[str]):
     cp=command_line_parser.CommandLineParser()
-    if cp.validate(sys.argv):                
-        cp.parse_args(sys.argv)    
+    if cp.validate(args):                
+        cp.parse_args(args)    
         bclh = MultiImageCommandLineOptionsHydrator()
         out:list[MultiImageCommandLineOptions]=[]
         ex_out:list[Exception]=[]
@@ -322,3 +322,6 @@ if __name__=='__main__':
             traceback.print_exception(ex_out[0])
     else:
         print('Not valid args')
+        
+if __name__=='__main__':
+    smain(sys.argv)
