@@ -10,6 +10,10 @@ import traceback
 import shutil
 from binary_mosaic_images.command_line_parser import CommandLineValue
 
+def isexe():
+    cmdexe=sys.argv[0]
+    sysexe=sys.executable
+    return sysexe==cmdexe
 bconvert=CommandLineValue.bool_as_string
 class MultiImageCommandLineOptionsHydrator(command_line_parser.BaseHelpfulCommandLineHydrator):
     def __init__(self) -> None:
@@ -248,7 +252,7 @@ def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,
         time.sleep(0.1)
         
 def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,pref:list[subprocess.Popen]):            
-    args=[g for f in [[sys.executable,'-m','binary_mosaic_images','--process-image','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not rainbow else ['--rainbow'],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if not palettized else ['--palettized'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
+    args=[g for f in [[sys.executable,'-m','binary_mosaic_images'] if not isexe() else [sys.executable] ,['--process-image','--img_name',img_name,'--img_out_name',img_out_name],[] if colorhex is None else ['--colorhex',colorhex],[] if not rainbow else ['--rainbow'],[] if not invert else ['--invert'],[] if not cell_invert else ['--cell_invert'],[] if not palettized else ['--palettized'],[] if output_width is None else ['--output_width',str(output_width)],[] if output_height is None else ['--output_height',str(output_height)],[] if output_size is None else ['--output_size',output_size]] for g in f]    
     pref[0]=subprocess.Popen(args=args)
 def drain(ppool:list[list[subprocess.Popen]]):
     found=True
