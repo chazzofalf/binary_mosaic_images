@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='binary_mosaic_images',
-    version='0.1.0',    
+    version='0.1.1',    
     description='Binary Mosaic Images',
     url='https://github.com/chazzofalf/binary_mosaic_images',
     author='Charles Montgomery',
