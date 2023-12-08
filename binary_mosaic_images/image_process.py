@@ -354,40 +354,53 @@ def get_processed_pixel_color(x: int, y: int,lookup: list,anti_lookup:list):
     else:
         return get_sector_pixel(x,y,lookup)
     
-def bitblock(bytex:int):
-    imgo=PIL.Image.new(mode='L',size=(5,5),color=bytex)
-    if bytex < 128:
-        imgo.putpixel((1,1),255-bytex)
-        imgo.putpixel((2,1),255-bytex)
-        imgo.putpixel((3,1),255-bytex)
-        imgo.putpixel((1,2),255-bytex)
-        imgo.putpixel((3,2),255-bytex)
-        imgo.putpixel((1,3),255-bytex)
-        imgo.putpixel((2,3),255-bytex)
-        imgo.putpixel((3,3),255-bytex)
+def get_white(mode:str='L'):
+    pixel_pic=PIL.Image.new(mode='L',size=(1,1),color=255)
+    pixel_pic = pixel_pic if mode == 'L' else pixel_pic.convert(mode=mode)
+    return pixel_pic.getpixel((0,0))
+
+def bitblock_template(mode='L'):
+    white=get_white(mode=mode)
+    zero_points=(i for h in (((g,f) for g in range(1,4)) if f % 2 == 1 else ((g*2+1,f) for g in range(0,1)) for f in range(1,4)) for i in h)
+    one_points=((int(2),f) for f in range(1,4))
+    def make_image():
+        return PIL.Image.new(mode=mode,size=(5,5))
+    (imgo,imgi)=(make_image,make_image)
+    (imgo,imgi)=tuple(f() for f in (imgo,imgi))
+    for pt in zero_points:
+        imgo.putpixel(pt,white)
+    for pt in one_points:
+        imgi.putpixel(pt,white)
+    return (imgo,imgi)
+def color_to_gray(colorx,mode:str='L'):
+    if mode == 'L':
+        return colorx
     else:
-        imgo.putpixel((2,1),255-bytex)
-        imgo.putpixel((2,2),255-bytex)
-        imgo.putpixel((2,3),255-bytex)
-    return imgo
-def bitblock_color(bytex:int,palapal:list[tuple[tuple[int,int,int],tuple[int,int,int],int]]):
-    (color,anticolor,dist)=palapal[bytex]
-    imgo=PIL.Image.new(mode='RGB',size=(5,5),color=color)
-    
-    if dist < 128:
-        imgo.putpixel((1,1),anticolor)
-        imgo.putpixel((2,1),anticolor)
-        imgo.putpixel((3,1),anticolor)
-        imgo.putpixel((1,2),anticolor)
-        imgo.putpixel((3,2),anticolor)
-        imgo.putpixel((1,3),anticolor)
-        imgo.putpixel((2,3),anticolor)
-        imgo.putpixel((3,3),anticolor)
+        graytest=PIL.Image.new(mode=mode,size=(1,1),color=colorx)
+        graytest=graytest.convert(mode='L')
+        return graytest.getpixel((0,0))
+def xor_pixel(color_a,color_b):
+    if isinstance(color_a,int) and isinstance(color_b,int):
+        return color_a ^ color_b
+    elif isinstance(color_a,tuple) and isinstance(color_b,tuple):
+        return tuple((xor_band for xor_band in map(xor_pixel,color_a,color_b)))
     else:
-        imgo.putpixel((2,1),anticolor)
-        imgo.putpixel((2,2),anticolor)
-        imgo.putpixel((2,3),anticolor)
-    return imgo
+        raise ValueError()
+def xor_image(img_a:PIL.Image.Image,img_b:PIL.Image.Image):
+    if img_a.mode==img_b.mode and img_a.height==img_b.height and img_a.width==img_b.width:
+        img_c=PIL.Image.new(mode=img_a.mode,size=img_a.size)
+        for y in range(0,img_a.height):
+            for x in range(0,img_a.width):
+                img_c.putpixel((x,y),xor_pixel(img_a.getpixel((x,y)),img_b.getpixel((x,y))))
+        return img_c
+    else:
+        raise ValueError()
+def bitblock(colorx,mode:str='L',palette:list=None):
+    (lo,hi) = bitblock_template(mode=mode)
+    color=colorx if palette is None else palette[colorx]
+    gray=color_to_gray(colorx=color,mode=mode)
+    selected_template = lo if gray < 128 else hi
+    return xor_image(selected_template,PIL.Image.new(mode=mode,size=selected_template.size,color=color))
 
 def colorize_image(img:PIL.Image,colorhex:str,invert:bool,rainbow:bool):
     def invertc(color:tuple[int,int,int]) -> tuple[int,int,int]:
@@ -500,17 +513,18 @@ def main(args:ImageProcessCommandLineArgs|dict[str,typing.Any]):
                             chunk=[]
                 return [f for f in chunk3gen(items_=items)]
             pal=chunk3(img_map.getpalette())
-            apal=[[255-g for g in f] for f in pal]
+            #apal=[[255-g for g in f] for f in pal]
             pal=[tuple(f) for f in pal]
-            apal=[tuple(f) for f in apal]
+            #apal=[tuple(f) for f in apal]
             def lcolorforrgb(c:tuple[int,int,int]):
                 timg=PIL.Image.new(mode='RGB',size=(1,1),color=c)
                 timg=timg.convert(mode='L')
                 return timg.getpixel((0,0))
-            def palapalmap(c:tuple[int,int,int],ac:tuple[int,int,int]):
-                return (c,ac,lcolorforrgb(c))
-            palapal=[f for f in map(palapalmap,pal,apal)]
-            bit_palette=[bitblock_color(bytex=f,palapal=palapal) for f in range(0,len(palapal))]
+            #def palapalmap(c:tuple[int,int,int],ac:tuple[int,int,int]):
+                #return (c,ac,lcolorforrgb(c))
+            #palapal=[f for f in map(palapalmap,pal,apal)]
+            bit_palette=[bitblock(colorx=f,mode='RGB') for f in pal]
+            #bit_palette=[bitblock(bytex=f,palapal=palapal) for f in range(0,len(palapal))]
             imgout=PIL.Image.new(mode='RGB',size=(img.width,img.height))
             for y in range(0,img_map.height):
                 for x in range(0,img_map.width):
