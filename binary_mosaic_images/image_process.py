@@ -361,7 +361,7 @@ def get_white(mode:str='L'):
 
 def bitblock_template(mode='L'):
     white=get_white(mode=mode)
-    zero_points=(i for h in (((g,f) for g in range(1,4)) if f % 2 == 1 else ((g*2+1,f) for g in range(0,1)) for f in range(1,4)) for i in h)
+    zero_points=(i for h in (((g,f) for g in range(1,4)) if f % 2 == 1 else ((g*2+1,f) for g in range(0,2)) for f in range(1,4)) for i in h)
     one_points=((int(2),f) for f in range(1,4))
     def make_image():
         return PIL.Image.new(mode=mode,size=(5,5))
@@ -379,6 +379,22 @@ def color_to_gray(colorx,mode:str='L'):
         graytest=PIL.Image.new(mode=mode,size=(1,1),color=colorx)
         graytest=graytest.convert(mode='L')
         return graytest.getpixel((0,0))
+def and_pixel(color_a,color_b):
+    if isinstance(color_a,int) and isinstance(color_b,int):
+        return color_a & color_b
+    elif isinstance(color_a,tuple) and isinstance(color_b,tuple):
+        return tuple((xor_band for xor_band in map(and_pixel,color_a,color_b)))
+    else:
+        raise ValueError()
+def and_image(img_a:PIL.Image.Image,img_b:PIL.Image.Image):
+    if img_a.mode==img_b.mode and img_a.height==img_b.height and img_a.width==img_b.width:
+        img_c=PIL.Image.new(mode=img_a.mode,size=img_a.size)
+        for y in range(0,img_a.height):
+            for x in range(0,img_a.width):
+                img_c.putpixel((x,y),and_pixel(img_a.getpixel((x,y)),img_b.getpixel((x,y))))
+        return img_c
+    else:
+        raise ValueError()
 def xor_pixel(color_a,color_b):
     if isinstance(color_a,int) and isinstance(color_b,int):
         return color_a ^ color_b
@@ -401,6 +417,28 @@ def bitblock(colorx,mode:str='L',palette:list=None):
     gray=color_to_gray(colorx=color,mode=mode)
     selected_template = lo if gray < 128 else hi
     return xor_image(selected_template,PIL.Image.new(mode=mode,size=selected_template.size,color=color))
+def color_invert(img:PIL.Image.Image):   
+    imgout=PIL.Image.new(mode=img.mode,size=img.size)
+    for yc in range(0,img.height):
+        for xc in range(0,img.width):
+            color=img.getpixel((xc,yc))            
+            if img.mode=='L':
+                color=255-color
+            elif img.mode=='RGB':
+                color=tuple(255-band for band in color)
+                
+            imgout.putpixel(xy=(xc,yc),value=color)
+    return imgout
+                    
+                    
+                    
+def splitblock(img:PIL.Image.Image):
+    (lo,hi) = bitblock_template(mode=img.mode)
+    color=img.getpixel((0,0))
+    gray=color_to_gray(colorx=color,mode=img.mode)
+    selected_template = lo if gray < 128 else hi
+    return and_image(selected_template,img)
+    
 
 def colorize_image(img:PIL.Image,colorhex:str,invert:bool,rainbow:bool):
     def invertc(color:tuple[int,int,int]) -> tuple[int,int,int]:
@@ -443,26 +481,27 @@ def colorize_image(img:PIL.Image,colorhex:str,invert:bool,rainbow:bool):
         for y in range(0,tempimgout.height):
             for x in range(0,tempimgout.width):
                 cg=img.getpixel((x,y))
-                color=colorize_gray(cg,colorizing_color)
                 if invert:
-                    color=invertc(color)
+                    cg=255-cg
+                color=colorize_gray(cg,colorizing_color)
+                
                 tempimgout.putpixel((x,y),color)                        
     elif rainbow and colorhex is None:        
         tempimgout=PIL.Image.new('RGB',img.size)        
         for y in range(0,tempimgout.height):
             for x in range(0,tempimgout.width):
                 cg=img.getpixel((x,y))
-                color=convert_gray_to_rainbow_color(cg)
                 if invert:
-                    color=invertc(color)
+                    cg=255-cg
+                color=convert_gray_to_rainbow_color(cg)                
                 tempimgout.putpixel((x,y),color)
     elif not rainbow and colorhex is None:                
         for y in range(0,tempimgout.height):
             for x in range(0,tempimgout.width):
                 cg=img.getpixel((x,y))
-                color=colorize_gray(cg,(255,255,255))
                 if invert:
-                    color=invertc(color)
+                    cg=255-cg
+                color=colorize_gray(cg,(255,255,255))                
                 tempimgout.putpixel((x,y),color)
     imgout=tempimgout
     imgout=imgout.convert('RGB')
@@ -490,17 +529,23 @@ def main(args:ImageProcessCommandLineArgs|dict[str,typing.Any]):
                 img.paste(bimg,rect)            
             except:
                 print(f'Failed to process {args.img_name} with rect of {rect} into output of {img.size} with input of size of {bimg.size}')
-                return
-        if args.colorhex is not None or args.invert or args.rainbow or not args.palettized:
+                return 
+        if not args.palettized:
             img=img.convert(mode='L')
-            bit_palette=[bitblock(bytex=f) for f in range(0,256)]
+            bit_palette=[bitblock(colorx=f) for f in range(0,256)]
             bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert,rainbow=args.rainbow) for f in bit_palette]
+            
+            def idx_img_map(img:PIL.Image.Image,idx:int):
+                (lo,hi) = bitblock_template(mode='RGB')
+                t=lo if idx < 128 else hi
+                return and_image(t,img)
+            bit_palette=[f for f in map(idx_img_map,bit_palette,range(0,256))]
             img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
             imgout=PIL.Image.new('RGB',img.size)
             for y in range(0,img_map.height):
                 for x in range(0,img_map.width):
                     imgout.paste(im=bit_palette[img_map.getpixel((x,y))],box=(x*5,y*5))   
-        elif args.palettized:
+        else:
             img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
             img_map=img_map.convert(mode='P',dither=PIL.Image.FLOYDSTEINBERG,palette=PIL.Image.Palette.ADAPTIVE,colors=256)
             def chunk3(items:list[int]):
@@ -524,6 +569,8 @@ def main(args:ImageProcessCommandLineArgs|dict[str,typing.Any]):
                 #return (c,ac,lcolorforrgb(c))
             #palapal=[f for f in map(palapalmap,pal,apal)]
             bit_palette=[bitblock(colorx=f,mode='RGB') for f in pal]
+            if args.invert:
+                bit_palette=[color_invert(img=f) for f in bit_palette]
             #bit_palette=[bitblock(bytex=f,palapal=palapal) for f in range(0,len(palapal))]
             imgout=PIL.Image.new(mode='RGB',size=(img.width,img.height))
             for y in range(0,img_map.height):

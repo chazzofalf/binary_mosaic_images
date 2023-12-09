@@ -4,3 +4,4 @@ dist/
 __main__.spec
 .fake
 .venv
+testdata
