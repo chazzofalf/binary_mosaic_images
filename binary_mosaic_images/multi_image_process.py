@@ -37,7 +37,8 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__output_height:int=None
         self.__output_size:str=None
         self.__rainbow:bool=None
-        self.__palettized:bool=None
+        self.__palettized:bool=None 
+        self.__bits_only:bool=None       
         
     def __fill_autos(self):
         self.__invert = False if self.__invert is None else self.__invert
@@ -46,6 +47,7 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self.__reset_output_dir = False if self.__reset_output_dir is None else self.__reset_output_dir   
         self.__rainbow = False if self.__rainbow is None else self.__rainbow
         self.__palettized = False if self.__palettized is None else self.__palettized
+        self.__bits_only = False if self.__bits_only is None else self.__bits_only
     def __is_one_or_none_of(self,items:Iterable[bool]):
         found_true=False
         for f in items:
@@ -139,6 +141,11 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
                 self.__palettized = value.bool_value
             else:
                 raise ValueError()
+        def set_bits_only_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'bits_only' and self.__bits_only is None:
+                self.__bits_only = value.bool_value
+            else:
+                raise ValueError()
                         
         self._populate_option('input_directory',command_line_parser.BaseHelpfulCommandLineOption('--input_directory The original folder containing an set of image files.',set_input_directory_cmd))
         self._populate_option('output_dir',command_line_parser.BaseHelpfulCommandLineOption('--output_dir The folder to place output files.',set_output_dir_cmd))
@@ -150,8 +157,9 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
         self._populate_option('output_width',command_line_parser.BaseHelpfulCommandLineOption('--output_width Sets the output width.',set_output_width_cmd))
         self._populate_option('output_height',command_line_parser.BaseHelpfulCommandLineOption('--output_height Sets the output height.',set_output_height_cmd))
         self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption('--output_size Sets the output size (WxH or FFMPEG-compatible abbreviation).',set_output_size_cmd))
-        self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_cmd))
+        self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_cmd))        
         self._populate_option('palettized',command_line_parser.BaseHelpfulCommandLineOption(help_text='--palettized Reduce this image to a 256 color image.',hydrate_action=set_palettized_cmd))        
+        self._populate_option('bits_only',command_line_parser.BaseHelpfulCommandLineOption(help_text='--bits_only Reduce this image to a 256 color image.',hydrate_action=set_bits_only_cmd))        
     @property 
     def reset_output_dir(self):
         return self.__reset_output_dir
@@ -238,21 +246,27 @@ class MultiImageCommandLineOptions(command_line_parser.BaseHelpfulCommandLineOpt
     @palettized.setter
     def palettized(self,palettized:bool):
         self.__palettized=palettized     
+    @property
+    def bits_only(self):
+        return self.__bits_only
+    @bits_only.setter
+    def bits_only(self,bits_only:bool):
+        self.__bits_only=bits_only  
 
-def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,ppool:list[list[multiprocessing.Process]]):
+def subprocess_it(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,bits_only,ppool:list[list[multiprocessing.Process]]):
     found=False    
     while not found:
         idx=0
         for pref in ppool:
             if pref[0] is None or not pref[0].is_alive():
-                subprocess_do(img_name=img_name,img_out_name=img_out_name,colorhex=colorhex,invert=invert,cell_invert=cell_invert,output_height=output_height,output_width=output_width,output_size=output_size,rainbow=rainbow,palettized=palettized,pref=pref)
+                subprocess_do(img_name=img_name,img_out_name=img_out_name,colorhex=colorhex,invert=invert,cell_invert=cell_invert,output_height=output_height,output_width=output_width,output_size=output_size,rainbow=rainbow,palettized=palettized,bits_only=bits_only,pref=pref)
                 found=True
                 break
             else:
                 idx += 1
         time.sleep(0.1)
         
-def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,pref:list[multiprocessing.Process]):            
+def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,output_height:int,output_width:int,output_size:str,rainbow,palettized,bits_only,pref:list[multiprocessing.Process]):            
     iargs=image_process.ImageProcessCommandLineArgs()
     iargs.img_name=str(img_name)
     iargs.img_out_name=str(img_out_name)
@@ -260,7 +274,8 @@ def subprocess_do(img_name:str,img_out_name:str,colorhex:str,invert,cell_invert,
     iargs.invert=invert
     iargs.cell_invert=cell_invert
     iargs.rainbow=rainbow 
-    iargs.palettized=palettized    
+    iargs.palettized=palettized  
+    iargs.bits_only=bits_only 
     if output_size is not None:
         iargs.output_size=output_size
     elif output_height is not None and output_width is not None:
@@ -310,7 +325,8 @@ def main(args:MultiImageCommandLineOptions):
             iargs.invert=args.invert
             iargs.cell_invert=args.cell_invert  
             iargs.rainbow=args.rainbow    
-            iargs.palettized=args.palettized      
+            iargs.palettized=args.palettized  
+            iargs.bits_only=args.bits_only    
             if args.output_size is not None:
                 iargs.output_size=args.output_size
             elif args.output_height is not None and args.output_width is not None:
@@ -319,7 +335,7 @@ def main(args:MultiImageCommandLineOptions):
             image_process.main(args=iargs)
         else:
             
-            subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,output_height=args.output_height,output_width=args.output_width,output_size=args.output_size,rainbow=args.rainbow,palettized=args.palettized,ppool=ppool)
+            subprocess_it(img_name=str(input_entity),img_out_name=str(output),colorhex=args.colorhex,invert=args.invert,cell_invert=args.cell_invert,output_height=args.output_height,output_width=args.output_width,output_size=args.output_size,rainbow=args.rainbow,palettized=args.palettized,bits_only=args.bits_only,ppool=ppool)
     if args.multiprocessing:
         drain(ppool=ppool)
 
