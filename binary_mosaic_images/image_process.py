@@ -418,6 +418,7 @@ def bitblock(colorx,mode:str='L',palette:list=None):
     selected_template = lo if gray < 128 else hi
     return xor_image(selected_template,PIL.Image.new(mode=mode,size=selected_template.size,color=color))
 def color_invert(img:PIL.Image.Image):   
+    import PIL.Image
     imgout=PIL.Image.new(mode=img.mode,size=img.size)
     for yc in range(0,img.height):
         for xc in range(0,img.width):
@@ -425,7 +426,20 @@ def color_invert(img:PIL.Image.Image):
             if img.mode=='L':
                 color=255-color
             elif img.mode=='RGB':
-                color=tuple(255-band for band in color)
+                import PIL.ImageColor
+                import colorsys
+                
+                
+                (r,g,b) = color
+                (r,g,b) = tuple((f/255 for f in (r,g,b)))
+                (h,l,s) = colorsys.rgb_to_hls(r,g,b)
+                l=1-l
+                (r,g,b) = colorsys.hls_to_rgb(h,l,s)
+                (r,g,b) = tuple((math.floor(f*256) for f in (r,g,b)))
+                color = (r,g,b)
+                
+                
+                #color=tuple(255-band for band in color)
                 
             imgout.putpixel(xy=(xc,yc),value=color)
     return imgout
@@ -569,8 +583,26 @@ def main(args:ImageProcessCommandLineArgs|dict[str,typing.Any]):
                 #return (c,ac,lcolorforrgb(c))
             #palapal=[f for f in map(palapalmap,pal,apal)]
             bit_palette=[bitblock(colorx=f,mode='RGB') for f in pal]
+            def get_color(img:PIL.Image.Image):
+                return img.getpixel((0,0))
+            def get_gray(color):
+                (r,g,b) = color
+                (r,g,b) = tuple(f/255 for f in (r,g,b))
+                import colorsys
+                from math import floor
+                (h,l,s) = colorsys.rgb_to_hls(r,g,b)
+                return floor(l*255)
+            def get_image_gray(img:PIL.Image.Image):
+                return get_gray(get_color(img=img))  
+            grays = [get_image_gray(f) for f in bit_palette]          
             if args.invert:
                 bit_palette=[color_invert(img=f) for f in bit_palette]
+                
+            def idx_img_map(img:PIL.Image.Image,gray:int):
+                (lo,hi) = bitblock_template(mode='RGB')
+                t=lo if gray < 128 else hi
+                return and_image(t,img)
+            bit_palette=[f for f in map(idx_img_map,bit_palette,grays)]
             #bit_palette=[bitblock(bytex=f,palapal=palapal) for f in range(0,len(palapal))]
             imgout=PIL.Image.new(mode='RGB',size=(img.width,img.height))
             for y in range(0,img_map.height):
