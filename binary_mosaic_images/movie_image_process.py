@@ -30,7 +30,7 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self.__output_size:str=None
         self.__rainbow:bool=None
         self.__palettized:bool=None
-        
+        self.__bits_only:bool=None
         
     def __fill_autos(self):
         self.__invert = False if self.__invert is None else self.__invert
@@ -39,6 +39,7 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self.__overwrite_video = False if self.__overwrite_video is None else self.__overwrite_video   
         self.__rainbow = False if self.__rainbow is None else self.__rainbow
         self.__palettized = False if self.__palettized is None else self.__palettized
+        self.__bits_only = False if self.__bits_only is None else self.__bits_only
     def __is_one_or_none_of(self,items:Iterable[bool]):
         found_true=False
         for f in items:
@@ -146,6 +147,11 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
                 self.__palettized = value.bool_value
             else:
                 raise ValueError()
+        def set_bits_only_cmd(key:str,value:command_line_parser.CommandLineValue):
+            if key == 'bits_only' and self.__bits_only is None:
+                self.__bits_only = value.bool_value
+            else:
+                raise ValueError()
             
         self._populate_option('ffmpeg_executable_path',command_line_parser.BaseHelpfulCommandLineOption('--ffmpeg_executable_path Path to the ffmpeg executable (✅Required)',set_ffmpeg_executable_path_cmd))
         self._populate_option('movie_input_path',command_line_parser.BaseHelpfulCommandLineOption('--movie_input_path Path to the input movie file (✅)(🦋Make sure the original video producer is okay with it first!) ',set_movie_input_path_cmd))
@@ -162,6 +168,7 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption('--output_size Sets the output size (WxH or FFMPEG-compatible abbreviation).',set_output_size_cmd))
         self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_cmd))
         self._populate_option('palettized',command_line_parser.BaseHelpfulCommandLineOption(help_text='--palettized Make this look like a infrared rainbow display!',hydrate_action=set_palettized_cmd))
+        self._populate_option('bits_only',command_line_parser.BaseHelpfulCommandLineOption(help_text='--bits_only Make this look like a infrared rainbow display!',hydrate_action=set_bits_only_cmd))
         
     def validate(self) -> bool:
         return super().validate() and self.__sub_validate()
@@ -275,7 +282,13 @@ class MovieImageProcessCommandLineOptions(command_line_parser.BaseHelpfulCommand
         return self.__palettized
     @palettized.setter
     def palettized(self,palettized:bool):
-        self.__palettized=palettized    
+        self.__palettized=palettized   
+    @property
+    def bits_only(self):
+        return self.__bits_only
+    @bits_only.setter
+    def bits_only(self,bits_only:bool):
+        self.__bits_only=bits_only  
     
 class TempDirSet(object):
     def __init__(self) -> None:
@@ -366,7 +379,9 @@ def main(args:MovieImageProcessCommandLineOptions):
     iargs.cell_invert=args.cell_invert  
     iargs.rainbow=args.rainbow  
     iargs.palettized=args.palettized
+    iargs.bits_only=args.bits_only
     iargs.multiprocessing=True
+    
     if args.output_size is not None:
         iargs.output_size=args.output_size
     elif args.output_height is not None and args.output_width is not None:
