@@ -27,6 +27,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self.__common_sizes_reversed:dict[str,str]=None
         self.__rainbow:bool=None
         self.__palettized:bool=None
+        self.__bits_only:bool=None
         self.__generate_common_sizes()
     def to_dict(self):
         x= super().to_dict()
@@ -39,6 +40,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         x['output_height']=self.output_height
         x['rainbow']=self.rainbow
         x['palettized']=self.palettized
+        x['bits_only']=self.bits_only
         
         
         return x
@@ -53,6 +55,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self.output_height=dictv['output_height']
         self.rainbow=dictv['rainbow']
         self.palettized=dictv['palettized']
+        self.bits_only=dictv['bits_only']
     
     def __populate_sizes(self):
         self.__common_sizes['ntsc']='720x480'
@@ -244,6 +247,12 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
     @palettized.setter
     def palettized(self,palettized:bool):
         self.__palettized=palettized
+    @property
+    def bits_only(self):
+        return self.__bits_only
+    @bits_only.setter
+    def bits_only(self,bits_only:bool):
+        self.__bits_only=bits_only
     
     
     def __set_img_name(self,key:str,value:command_line_parser.CommandLineValue):
@@ -296,6 +305,11 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             self.palettized=value.bool_value
         else:
             raise ValueError()
+    def __set_bits_only_call(self,key:str,value:command_line_parser.CommandLineValue):
+        if key == 'bits_only' and self.__bits_only is None:
+            self.bits_only=value.bool_value
+        else:
+            raise ValueError()
     def _populate_options(self):
         def set_img_name_call(key:str,value:command_line_parser.CommandLineValue):
             self.__set_img_name(key=key,value=value)
@@ -317,6 +331,8 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
             self.__set_rainbow_call(key=key,value=value)
         def set_palettized_call(key:str,value:command_line_parser.CommandLineValue):
             self.__set_palettized_call(key=key,value=value)
+        def set_bits_only_call(key:str,value:command_line_parser.CommandLineValue):
+            self.__set_bits_only_call(key=key,value=value)
         self._populate_option('img_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='--img_name The name of the input image',hydrate_action=set_img_name_call))
         self._populate_option('img_out_name',command_line_parser.BaseHelpfulCommandLineOption(help_text='--img_out_name The name of the output image',hydrate_action=set_img_out_name_call))
         self._populate_option('colorhex',command_line_parser.BaseHelpfulCommandLineOption(help_text='--colorhex The general color of the output image',hydrate_action=set_colorhex_call))
@@ -327,6 +343,7 @@ class ImageProcessCommandLineArgs(command_line_parser.BaseHelpfulCommandLineOpti
         self._populate_option('output_size',command_line_parser.BaseHelpfulCommandLineOption(help_text='--output_size The width of the output (in WxH format or use and abbreviation [abbreviations are made to be compatible with FFMPEGs abbreviations])',hydrate_action=set_output_size_call))
         self._populate_option('rainbow',command_line_parser.BaseHelpfulCommandLineOption(help_text='--rainbow Make this look like a infrared rainbow display!',hydrate_action=set_rainbow_call))
         self._populate_option('palettized',command_line_parser.BaseHelpfulCommandLineOption(help_text='--palettized Reduce this image to a 256 color image.',hydrate_action=set_palettized_call))
+        self._populate_option('bits_only',command_line_parser.BaseHelpfulCommandLineOption(help_text='--bits_only Reduce this image to a 256 color image.',hydrate_action=set_bits_only_call))
 def get_pixel(x: int, y: int,img: PIL.Image.Image):
     return img.getpixel((x % img.width,y % img.height))
 def get_sector_pixel(x: int, y: int,lookup: list):    
@@ -548,12 +565,12 @@ def main(args:ImageProcessCommandLineArgs|dict[str,typing.Any]):
             img=img.convert(mode='L')
             bit_palette=[bitblock(colorx=f) for f in range(0,256)]
             bit_palette=[colorize_image(f,colorhex=args.colorhex,invert=args.invert,rainbow=args.rainbow) for f in bit_palette]
-            
-            def idx_img_map(img:PIL.Image.Image,idx:int):
-                (lo,hi) = bitblock_template(mode='RGB')
-                t=lo if idx < 128 else hi
-                return and_image(t,img)
-            bit_palette=[f for f in map(idx_img_map,bit_palette,range(0,256))]
+            if args.bits_only:
+                def idx_img_map(img:PIL.Image.Image,idx:int):
+                    (lo,hi) = bitblock_template(mode='RGB')
+                    t=lo if idx < 128 else hi
+                    return and_image(t,img)
+                bit_palette=[f for f in map(idx_img_map,bit_palette,range(0,256))]
             img_map=img.resize((math.ceil(img.width/5),math.ceil(img.height/5)))
             imgout=PIL.Image.new('RGB',img.size)
             for y in range(0,img_map.height):
@@ -597,12 +614,12 @@ def main(args:ImageProcessCommandLineArgs|dict[str,typing.Any]):
             grays = [get_image_gray(f) for f in bit_palette]          
             if args.invert:
                 bit_palette=[color_invert(img=f) for f in bit_palette]
-                
-            def idx_img_map(img:PIL.Image.Image,gray:int):
-                (lo,hi) = bitblock_template(mode='RGB')
-                t=lo if gray < 128 else hi
-                return and_image(t,img)
-            bit_palette=[f for f in map(idx_img_map,bit_palette,grays)]
+            if args.bits_only:    
+                def idx_img_map(img:PIL.Image.Image,gray:int):
+                    (lo,hi) = bitblock_template(mode='RGB')
+                    t=lo if gray < 128 else hi
+                    return and_image(t,img)
+                bit_palette=[f for f in map(idx_img_map,bit_palette,grays)]
             #bit_palette=[bitblock(bytex=f,palapal=palapal) for f in range(0,len(palapal))]
             imgout=PIL.Image.new(mode='RGB',size=(img.width,img.height))
             for y in range(0,img_map.height):
